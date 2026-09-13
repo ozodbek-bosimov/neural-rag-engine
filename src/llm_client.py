@@ -163,7 +163,11 @@ class LLMClient:
                 continue
             if in_context:
                 if line_str and not line_str.startswith("[Source") and not line_str.startswith("==="):
-                    context_lines.append(line_str)
+                    # Clean any leading or inline markdown hash artifacts
+                    cleaned_line = re.sub(r'^#+\s*', '', line_str)
+                    cleaned_line = re.sub(r'\s*#+\s*', ' — ', cleaned_line)
+                    if cleaned_line:
+                        context_lines.append(cleaned_line)
             else:
                 if line_str and not line_str.startswith("You are") and not line_str.startswith("Provide a") and not question:
                     question = line_str
@@ -176,8 +180,18 @@ class LLMClient:
             ranked.append((overlap, line))
 
         ranked.sort(key=lambda x: x[0], reverse=True)
-        top = [item[1] for item in ranked if item[1]][:5]
-        extracted = "\n\n".join(top) if top else "\n\n".join(context_lines[:4])
+        top = [item[1] for item in ranked if item[1]][:3]
+        if not top and context_lines:
+            top = context_lines[:3]
+
+        paragraphs = []
+        for p in top:
+            p_clean = re.sub(r'^#+\s*', '', p.strip())
+            p_clean = re.sub(r'\s*#+\s*', ' — ', p_clean)
+            if p_clean:
+                paragraphs.append(p_clean)
+
+        extracted = "\n\n".join(paragraphs)
 
         return (
             f"**Grounded Extraction:**\n\n"

@@ -9,8 +9,27 @@ class DocumentChunker:
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
 
+    def clean_text(self, text: str) -> str:
+        lines = []
+        for line in text.splitlines():
+            line_str = line.strip()
+            if not line_str:
+                continue
+            # Clean heading markers like '# Title' or '## Section'
+            h_match = re.match(r'^(#+)\s*(.*)$', line_str)
+            if h_match:
+                heading = h_match.group(2).strip()
+                if heading:
+                    if not heading.endswith(('.', '!', '?', ':')):
+                        heading += '.'
+                    lines.append(heading)
+            else:
+                lines.append(line_str)
+        return " ".join(lines)
+
     def split_sentences(self, text: str) -> List[str]:
-        cleaned = re.sub(r'\s+', ' ', text).strip()
+        cleaned = self.clean_text(text)
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
         sentences = re.split(r'(?<=[.!?])\s+', cleaned)
         return [s.strip() for s in sentences if s.strip()]
 

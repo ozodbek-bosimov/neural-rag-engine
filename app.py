@@ -622,6 +622,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
       margin: 1rem 0 0.45rem 0;
       font-weight: 600;
     }
+    .answer-box h1 { font-size: 1.15rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.3rem; }
     .answer-box h2 { font-size: 1.05rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.3rem; }
     .answer-box h3 { font-size: 0.98rem; }
     .answer-box h4 { font-size: 0.92rem; }
@@ -945,13 +946,18 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
     function renderMarkdown(md) {
       if (!md) return '';
+      let cleanMd = md
+        .replace(/^#+\s*(.{70,})$/gm, '$1')
+        .replace(/([^\n])\s*##+\s*(\d*\.?\s*)/g, '$1\n\n**$2')
+        .replace(/([^\n])\s*#+\s*/g, '$1\n\n');
+
       if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
         try {
-          return marked.parse(md);
+          return marked.parse(cleanMd);
         } catch (e) {}
       }
 
-      const text = md.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      const text = cleanMd.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
       function parseInline(str) {
         let s = str
