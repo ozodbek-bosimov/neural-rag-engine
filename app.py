@@ -8,7 +8,7 @@ import sys
 import json
 import time
 import base64
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -652,7 +652,6 @@ HTML_PAGE = """<!DOCTYPE html>
           </button>
         </div>
         <div class="demo-queries">
-          <span class="demo-label">Demo:</span>
           <button class="demo-btn" onclick="applyQuery('What are the five essential steps of a standard PyTorch training loop?')">PyTorch Training Loop</button>
           <button class="demo-btn" onclick="applyQuery('What is RAG and how does it prevent LLM hallucination?')">RAG & Hallucination Grounding</button>
           <button class="demo-btn" onclick="applyQuery('What are the benefits of weight quantization and SIMD inference for deployment?')">SIMD & Quantization</button>
@@ -1143,7 +1142,8 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
 
 def run_server(port: int = 8085):
     server_address = ("0.0.0.0", port)
-    httpd = HTTPServer(server_address, RAGRequestHandler)
+    httpd = ThreadingHTTPServer(server_address, RAGRequestHandler)
+    httpd.daemon_threads = True
     print(f"[*] Neural RAG Engine Server running on http://localhost:{port}")
     try:
         httpd.serve_forever()
