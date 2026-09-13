@@ -57,7 +57,7 @@ def get_engine_for_session(session_id: str) -> RAGEngine:
         return eng
 
 
-HTML_PAGE = """<!DOCTYPE html>
+HTML_PAGE = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -66,6 +66,7 @@ HTML_PAGE = """<!DOCTYPE html>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     :root {
       --bg-base: #0d1117;
@@ -533,9 +534,71 @@ HTML_PAGE = """<!DOCTYPE html>
     }
     .answer-box {
       font-size: 0.92rem;
-      line-height: 1.65;
+      line-height: 1.68;
       color: #e6edf3;
-      white-space: pre-wrap;
+    }
+    .answer-box p {
+      margin-bottom: 0.85rem;
+    }
+    .answer-box p:last-child {
+      margin-bottom: 0;
+    }
+    .answer-box strong {
+      color: #ffffff;
+      font-weight: 600;
+    }
+    .answer-box em {
+      color: #d2a8ff;
+      font-style: italic;
+    }
+    .answer-box ul, .answer-box ol {
+      margin: 0.5rem 0 0.85rem 1.4rem;
+      padding-left: 0.2rem;
+    }
+    .answer-box li {
+      margin-bottom: 0.35rem;
+      line-height: 1.6;
+    }
+    .answer-box li::marker {
+      color: #58a6ff;
+    }
+    .answer-box h1, .answer-box h2, .answer-box h3, .answer-box h4 {
+      color: #f0f6fc;
+      margin: 1rem 0 0.45rem 0;
+      font-weight: 600;
+    }
+    .answer-box h2 { font-size: 1.05rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.3rem; }
+    .answer-box h3 { font-size: 0.98rem; }
+    .answer-box h4 { font-size: 0.92rem; }
+    .answer-box code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      background: rgba(110, 118, 129, 0.2);
+      color: #79c0ff;
+      padding: 0.15rem 0.35rem;
+      border-radius: 4px;
+      border: 1px solid rgba(110, 118, 129, 0.25);
+    }
+    .answer-box pre {
+      background: #0d1117;
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 0.85rem 1rem;
+      overflow-x: auto;
+      margin: 0.75rem 0;
+    }
+    .answer-box pre code {
+      background: transparent;
+      padding: 0;
+      border: none;
+      color: #e6edf3;
+      font-size: 0.82rem;
+    }
+    .answer-box blockquote {
+      border-left: 3px solid #58a6ff;
+      margin: 0.75rem 0;
+      padding-left: 0.85rem;
+      color: var(--text-secondary);
     }
 
     .citations-header {
@@ -824,6 +887,47 @@ HTML_PAGE = """<!DOCTYPE html>
       return fetch(url + separator + 'session_id=' + encodeURIComponent(SESSION_ID), options);
     }
 
+    function renderMarkdown(md) {
+      if (!md) return '';
+      if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
+        try {
+          return marked.parse(md);
+        } catch (e) {
+          console.warn('marked error, using fallback:', e);
+        }
+      }
+      let html = md
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+      html = html.replace(/```([a-z0-9_-]*)\n([\s\S]*?)```/gim, (m, lang, code) => `<pre><code>${code.trim()}</code></pre>`);
+      html = html.replace(/```([\s\S]*?)```/gim, (m, code) => `<pre><code>${code.trim()}</code></pre>`);
+      html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+      html = html.replace(/^### (.*$)/gim, '<h4>$1</h4>');
+      html = html.replace(/^## (.*$)/gim, '<h3>$1</h3>');
+      html = html.replace(/^# (.*$)/gim, '<h2>$1</h2>');
+
+      html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+      html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+      html = html.replace(/^\s*[\*\-]\s+(.*)$/gim, '<li>$1</li>');
+      html = html.replace(/(<li>[\s\S]*?<\/li>)/gim, '<ul>$1</ul>');
+      html = html.replace(/<\/ul>\s*<ul>/gim, '');
+
+      const lines = html.split(/\n\n+/);
+      return lines.map(p => {
+        p = p.trim();
+        if (!p) return '';
+        if (/^<(h[1-6]|ul|ol|pre|blockquote)/i.test(p)) {
+          return p;
+        }
+        return `<p>${p.replace(/\n/g, '<br>')}</p>`;
+      }).join('\n');
+    }
+
     async function refreshStats() {
       try {
         const res = await apiFetch('/api/stats');
@@ -887,7 +991,7 @@ HTML_PAGE = """<!DOCTYPE html>
         const data = await res.json();
 
         card.style.display = 'flex';
-        answerEl.textContent = data.answer;
+        answerEl.innerHTML = renderMarkdown(data.answer);
         modelEl.textContent = data.model_used + (data.fallback_used ? ' (Offline Mode)' : '');
         latencyEl.textContent = `⚡ Retrieval: ${data.retrieval_time_ms}ms | Total: ${data.total_latency_ms}ms`;
 
