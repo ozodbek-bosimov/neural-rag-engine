@@ -25,30 +25,29 @@ HTML_PAGE = """<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Neural RAG Engine — High-Performance Retrieval & LLM Grounding</title>
+  <title>Neural RAG Engine — Dense Retrieval & LLM Grounding</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-base: #0b0f19;
-      --bg-surface: #111827;
-      --bg-card: #1f2937;
-      --border-subtle: #374151;
-      --border-focus: #6366f1;
-      --text-primary: #f9fafb;
-      --text-secondary: #9ca3af;
-      --text-muted: #6b7280;
-      --accent-indigo: #6366f1;
-      --accent-purple: #8b5cf6;
-      --accent-emerald: #10b981;
-      --accent-cyan: #06b6d4;
-      --gradient-brand: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
+      --bg-base: #0d1117;
+      --bg-surface: #161b22;
+      --bg-card: #21262d;
+      --border-subtle: #30363d;
+      --border-focus: #58a6ff;
+      --text-primary: #f0f6fc;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+      --accent-blue: #2f81f7;
+      --accent-green: #238636;
+      --accent-green-hover: #2ea043;
+      --accent-tag: #1f6feb;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background-color: var(--bg-base);
       color: var(--text-primary);
       min-height: 100vh;
@@ -57,10 +56,9 @@ HTML_PAGE = """<!DOCTYPE html>
     }
 
     header {
-      background: rgba(17, 24, 39, 0.85);
-      backdrop-filter: blur(12px);
+      background: var(--bg-surface);
       border-bottom: 1px solid var(--border-subtle);
-      padding: 1rem 2rem;
+      padding: 0.85rem 2rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -70,92 +68,95 @@ HTML_PAGE = """<!DOCTYPE html>
     }
     .brand {
       display: flex;
-      align-items: center;
-      gap: 0.85rem;
+      align-items: baseline;
+      gap: 0.75rem;
       text-decoration: none;
       color: inherit;
     }
-    .brand-logo {
-      width: 38px;
-      height: 38px;
-      border-radius: 10px;
-      background: var(--gradient-brand);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      font-size: 1.25rem;
-      color: white;
-      box-shadow: 0 0 16px rgba(99, 102, 241, 0.35);
-    }
     .brand-title {
       font-weight: 700;
-      font-size: 1.15rem;
-      letter-spacing: -0.02em;
+      font-size: 1.05rem;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
     }
-    .badge {
-      font-size: 0.7rem;
-      padding: 0.2rem 0.6rem;
-      background: rgba(99, 102, 241, 0.15);
-      color: #818cf8;
-      border: 1px solid rgba(99, 102, 241, 0.3);
-      border-radius: 9999px;
-      font-weight: 600;
-      margin-left: 0.5rem;
+    .brand-sub {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-weight: 400;
     }
 
     .nav-actions {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.6rem;
     }
-    .btn-secondary {
+    .btn-outline {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       color: var(--text-primary);
-      padding: 0.5rem 0.9rem;
-      border-radius: 8px;
-      font-size: 0.82rem;
+      padding: 0.45rem 0.85rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
       font-weight: 500;
       cursor: pointer;
       display: flex;
       align-items: center;
-      gap: 0.4rem;
-      transition: all 0.15s ease-in-out;
+      gap: 0.45rem;
       text-decoration: none;
+      transition: background 0.15s, border-color 0.15s;
     }
-    .btn-secondary:hover {
-      border-color: var(--accent-indigo);
-      background: #283548;
+    .btn-outline:hover {
+      background: #30363d;
+      border-color: #8b949e;
+    }
+    .btn-github {
+      background: #21262d;
+      border: 1px solid var(--border-subtle);
+      color: #c9d1d9;
+      padding: 0.45rem 0.85rem;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      text-decoration: none;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .btn-github:hover {
+      background: #30363d;
+      border-color: #8b949e;
+      color: #f0f6fc;
     }
 
     .container {
       max-width: 1400px;
       margin: 0 auto;
-      padding: 2rem;
+      padding: 1.75rem 2rem;
       display: grid;
       grid-template-columns: 320px 1fr;
-      gap: 2rem;
+      gap: 1.75rem;
       flex: 1;
       width: 100%;
     }
     @media (max-width: 960px) {
-      .container { grid-template-columns: 1fr; }
+      .container { grid-template-columns: 1fr; padding: 1rem; }
     }
 
     .sidebar {
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
-      border-radius: 12px;
-      padding: 1.5rem;
+      border-radius: 8px;
+      padding: 1.25rem;
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
+      gap: 1.25rem;
       height: fit-content;
     }
     .section-title {
-      font-size: 0.82rem;
-      font-weight: 700;
+      font-size: 0.75rem;
+      font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--text-secondary);
@@ -163,42 +164,44 @@ HTML_PAGE = """<!DOCTYPE html>
       justify-content: space-between;
       align-items: center;
     }
+
     .stats-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 0.75rem;
+      gap: 0.6rem;
     }
     .stat-card {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
-      border-radius: 8px;
-      padding: 0.85rem;
+      border-radius: 6px;
+      padding: 0.65rem 0.85rem;
+      text-align: center;
     }
     .stat-val {
-      font-size: 1.4rem;
+      font-size: 1.35rem;
       font-weight: 700;
-      color: var(--text-primary);
       font-family: 'JetBrains Mono', monospace;
+      color: var(--text-primary);
     }
     .stat-lbl {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      margin-top: 0.2rem;
+      font-size: 0.68rem;
+      color: var(--text-secondary);
+      margin-top: 0.15rem;
     }
 
     .doc-list {
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
-      max-height: 260px;
+      gap: 0.45rem;
+      max-height: 240px;
       overflow-y: auto;
     }
     .doc-item {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
-      border-radius: 8px;
-      padding: 0.65rem 0.85rem;
-      font-size: 0.82rem;
+      border-radius: 6px;
+      padding: 0.55rem 0.75rem;
+      font-size: 0.8rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -209,159 +212,152 @@ HTML_PAGE = """<!DOCTYPE html>
       text-overflow: ellipsis;
       max-width: 170px;
       font-weight: 500;
+      color: var(--text-primary);
     }
     .chunk-tag {
-      font-size: 0.7rem;
-      color: var(--accent-cyan);
-      background: rgba(6, 182, 212, 0.12);
-      padding: 0.15rem 0.45rem;
+      font-size: 0.68rem;
+      color: #58a6ff;
+      background: rgba(56, 139, 253, 0.1);
+      border: 1px solid rgba(56, 139, 253, 0.2);
+      padding: 0.1rem 0.4rem;
       border-radius: 4px;
-      font-weight: 600;
       font-family: 'JetBrains Mono', monospace;
     }
     .delete-btn {
       background: transparent;
       border: 1px solid transparent;
       cursor: pointer;
-      padding: 2px 6px;
+      padding: 1px 5px;
       border-radius: 4px;
-      opacity: 0.5;
-      transition: all 0.15s ease;
-      font-size: 0.75rem;
+      font-size: 0.8rem;
       line-height: 1;
-      color: var(--text-secondary);
+      color: var(--text-muted);
+      transition: all 0.15s ease;
     }
     .delete-btn:hover {
-      opacity: 1;
-      color: #ef4444;
-      background: rgba(239, 68, 68, 0.15);
-      border-color: rgba(239, 68, 68, 0.3);
-      transform: scale(1.08);
+      color: #f85149;
+      background: rgba(248, 81, 73, 0.12);
+      border-color: rgba(248, 81, 73, 0.3);
     }
 
     .input-group {
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
-      border-top: 1px solid var(--border-subtle);
-      padding-top: 1.25rem;
+      gap: 0.6rem;
     }
     .input-box {
       width: 100%;
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
-      border-radius: 8px;
+      border-radius: 6px;
       color: var(--text-primary);
-      padding: 0.6rem 0.85rem;
-      font-size: 0.85rem;
+      padding: 0.55rem 0.75rem;
+      font-size: 0.82rem;
       font-family: inherit;
     }
     .input-box:focus {
       outline: none;
-      border-color: var(--accent-indigo);
+      border-color: var(--border-focus);
     }
     .btn-primary {
-      background: var(--accent-indigo);
-      border: none;
+      background: var(--accent-green);
+      border: 1px solid rgba(240, 246, 252, 0.1);
       color: white;
-      padding: 0.65rem 1rem;
-      border-radius: 8px;
-      font-size: 0.85rem;
+      padding: 0.55rem 0.85rem;
+      border-radius: 6px;
+      font-size: 0.82rem;
       font-weight: 600;
       cursor: pointer;
       transition: background 0.15s;
     }
     .btn-primary:hover {
-      background: #4f46e5;
+      background: var(--accent-green-hover);
     }
 
     .upload-dropzone {
-      border: 2px dashed var(--border-subtle);
-      border-radius: 10px;
-      padding: 1.25rem 1rem;
+      border: 1px dashed var(--border-subtle);
+      border-radius: 6px;
+      padding: 1rem 0.85rem;
       text-align: center;
       cursor: pointer;
-      background: rgba(31, 41, 55, 0.4);
-      transition: all 0.2s ease;
+      background: rgba(33, 38, 45, 0.5);
+      transition: all 0.15s ease;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.35rem;
+      gap: 0.25rem;
     }
     .upload-dropzone:hover, .upload-dropzone.dragover {
-      border-color: var(--accent-indigo);
-      background: rgba(99, 102, 241, 0.08);
-    }
-    .upload-icon {
-      font-size: 1.75rem;
+      border-color: var(--border-focus);
+      background: rgba(56, 139, 253, 0.05);
     }
     .upload-title {
-      font-size: 0.85rem;
-      font-weight: 600;
+      font-size: 0.82rem;
+      font-weight: 500;
       color: var(--text-primary);
     }
     .upload-subtitle {
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       color: var(--text-muted);
     }
     .upload-status {
-      font-size: 0.78rem;
-      padding: 0.5rem 0.75rem;
-      border-radius: 6px;
+      font-size: 0.75rem;
+      padding: 0.45rem 0.65rem;
+      border-radius: 4px;
       display: none;
       line-height: 1.4;
     }
     .upload-status.success {
       display: block;
-      background: rgba(16, 185, 129, 0.15);
-      color: #34d399;
-      border: 1px solid rgba(16, 185, 129, 0.3);
+      background: rgba(46, 160, 67, 0.12);
+      color: #3fb950;
+      border: 1px solid rgba(46, 160, 67, 0.25);
     }
     .upload-status.loading {
       display: block;
-      background: rgba(99, 102, 241, 0.15);
-      color: #818cf8;
-      border: 1px solid rgba(99, 102, 241, 0.3);
+      background: rgba(56, 139, 253, 0.12);
+      color: #58a6ff;
+      border: 1px solid rgba(56, 139, 253, 0.25);
     }
     .upload-status.error {
       display: block;
-      background: rgba(239, 68, 68, 0.15);
-      color: #f87171;
-      border: 1px solid rgba(239, 68, 68, 0.3);
+      background: rgba(248, 81, 73, 0.12);
+      color: #f85149;
+      border: 1px solid rgba(248, 81, 73, 0.25);
     }
 
     .main-view {
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
+      gap: 1.25rem;
     }
 
     .search-panel {
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
-      border-radius: 12px;
-      padding: 1.75rem;
+      border-radius: 8px;
+      padding: 1.25rem;
     }
     .presets {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-bottom: 1.25rem;
+      gap: 0.45rem;
+      margin-bottom: 1rem;
     }
     .preset-pill {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
-      border-radius: 9999px;
-      padding: 0.35rem 0.85rem;
-      font-size: 0.78rem;
+      border-radius: 4px;
+      padding: 0.3rem 0.65rem;
+      font-size: 0.75rem;
       color: var(--text-secondary);
       cursor: pointer;
       transition: all 0.15s;
     }
     .preset-pill:hover {
-      border-color: var(--accent-indigo);
+      border-color: #8b949e;
       color: var(--text-primary);
-      background: rgba(99, 102, 241, 0.1);
+      background: #30363d;
     }
 
     .search-row {
@@ -372,46 +368,50 @@ HTML_PAGE = """<!DOCTYPE html>
     .search-bar {
       width: 100%;
       background: var(--bg-card);
-      border: 1.5px solid var(--border-subtle);
-      border-radius: 10px;
-      padding: 0.95rem 1.25rem;
-      padding-right: 120px;
-      font-size: 0.98rem;
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      padding-right: 95px;
+      font-size: 0.92rem;
       color: var(--text-primary);
       font-family: inherit;
-      transition: border-color 0.2s, box-shadow 0.2s;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
     .search-bar:focus {
       outline: none;
-      border-color: var(--accent-indigo);
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(56, 139, 253, 0.15);
     }
     .submit-btn {
       position: absolute;
-      right: 8px;
-      background: var(--gradient-brand);
+      right: 5px;
+      background: var(--accent-green);
       color: white;
-      border: none;
-      padding: 0.6rem 1.15rem;
-      border-radius: 8px;
+      border: 1px solid rgba(240, 246, 252, 0.1);
+      padding: 0.45rem 0.95rem;
+      border-radius: 5px;
       font-weight: 600;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       cursor: pointer;
+      transition: background 0.15s;
+    }
+    .submit-btn:hover {
+      background: var(--accent-green-hover);
     }
 
     .results-card {
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
-      border-radius: 12px;
-      padding: 1.75rem;
+      border-radius: 8px;
+      padding: 1.5rem;
       display: none;
       flex-direction: column;
-      gap: 1.25rem;
-      animation: fadeIn 0.25s ease-in-out;
+      gap: 1.15rem;
+      animation: fadeIn 0.2s ease-in-out;
     }
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
 
     .results-top {
@@ -419,47 +419,47 @@ HTML_PAGE = """<!DOCTYPE html>
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid var(--border-subtle);
-      padding-bottom: 0.85rem;
+      padding-bottom: 0.75rem;
     }
     .latency-badge {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       font-family: 'JetBrains Mono', monospace;
-      color: var(--accent-emerald);
-      background: rgba(16, 185, 129, 0.1);
-      border: 1px solid rgba(16, 185, 129, 0.25);
-      padding: 0.25rem 0.65rem;
-      border-radius: 6px;
+      color: #3fb950;
+      background: rgba(46, 160, 67, 0.1);
+      border: 1px solid rgba(46, 160, 67, 0.25);
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
     }
     .answer-box {
-      font-size: 0.95rem;
-      line-height: 1.7;
-      color: #e5e7eb;
+      font-size: 0.92rem;
+      line-height: 1.65;
+      color: #e6edf3;
       white-space: pre-wrap;
     }
 
     .citations-header {
-      font-size: 0.82rem;
-      font-weight: 700;
+      font-size: 0.75rem;
+      font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--text-secondary);
       border-top: 1px solid var(--border-subtle);
-      padding-top: 1.25rem;
-      margin-bottom: 0.75rem;
+      padding-top: 1rem;
+      margin-bottom: 0.65rem;
     }
     .citations-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1rem;
+      gap: 0.75rem;
     }
     .citation-card {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
-      border-radius: 8px;
-      padding: 1rem;
+      border-radius: 6px;
+      padding: 0.85rem;
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
+      gap: 0.4rem;
     }
     .citation-top {
       display: flex;
@@ -468,29 +468,72 @@ HTML_PAGE = """<!DOCTYPE html>
     }
     .citation-name {
       font-weight: 600;
-      font-size: 0.82rem;
-      color: #93c5fd;
+      font-size: 0.78rem;
+      color: #58a6ff;
     }
     .citation-score {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.72rem;
-      background: rgba(99, 102, 241, 0.15);
-      color: #818cf8;
-      padding: 0.15rem 0.45rem;
-      border-radius: 4px;
+      font-size: 0.7rem;
+      background: rgba(56, 139, 253, 0.1);
+      color: #58a6ff;
+      padding: 0.1rem 0.35rem;
+      border-radius: 3px;
     }
     .citation-text {
-      font-size: 0.78rem;
-      line-height: 1.5;
+      font-size: 0.75rem;
+      line-height: 1.45;
       color: var(--text-secondary);
-      font-style: italic;
+    }
+
+    footer {
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border-subtle);
+      padding: 0.85rem 2rem;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: auto;
+    }
+    .footer-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    @media (max-width: 600px) {
+      .footer-inner { flex-direction: column; gap: 0.4rem; align-items: flex-start; }
+    }
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .footer-right {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .footer-brand {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .footer-sep {
+      color: var(--border-subtle);
+    }
+    .footer-link {
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .footer-link:hover {
+      color: #58a6ff;
     }
 
     .modal-backdrop {
       position: fixed;
       inset: 0;
       background: rgba(0, 0, 0, 0.75);
-      backdrop-filter: blur(6px);
+      backdrop-filter: blur(4px);
       display: none;
       align-items: center;
       justify-content: center;
@@ -499,13 +542,13 @@ HTML_PAGE = """<!DOCTYPE html>
     .modal-card {
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
-      border-radius: 14px;
+      border-radius: 8px;
       width: 100%;
-      max-width: 480px;
-      padding: 2rem;
+      max-width: 460px;
+      padding: 1.5rem;
       display: flex;
       flex-direction: column;
-      gap: 1.25rem;
+      gap: 1rem;
     }
     .modal-head {
       display: flex;
@@ -516,7 +559,7 @@ HTML_PAGE = """<!DOCTYPE html>
       background: none;
       border: none;
       color: var(--text-muted);
-      font-size: 1.5rem;
+      font-size: 1.35rem;
       cursor: pointer;
     }
   </style>
@@ -525,16 +568,16 @@ HTML_PAGE = """<!DOCTYPE html>
 
   <header>
     <a href="/" class="brand">
-      <div class="brand-logo">⚡</div>
-      <div class="brand-title">Neural RAG Engine</div>
-      <span class="badge">Dual-Engine</span>
+      <span class="brand-title">Neural RAG Engine</span>
+      <span class="brand-sub">Dense Retrieval & LLM Grounding</span>
     </a>
     <div class="nav-actions">
-      <button class="btn-secondary" onclick="openSettings()">
-        ⚙️ Settings
+      <button class="btn-outline" onclick="openSettings()">
+        Settings
       </button>
-      <a href="https://github.com/ozodbek-bosimov/neural-rag-engine" target="_blank" class="btn-secondary">
-        ⭐ GitHub
+      <a href="https://github.com/ozodbek-bosimov/neural-rag-engine" target="_blank" class="btn-github" title="View Source on GitHub">
+        <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        <span>GitHub</span>
       </a>
     </div>
   </header>
@@ -565,20 +608,19 @@ HTML_PAGE = """<!DOCTYPE html>
         </div>
 
         <div class="upload-dropzone" id="upload-dropzone" onclick="document.getElementById('file-upload-input').click()">
-          <div class="upload-icon">📄</div>
-          <div class="upload-title"><strong>Choose file</strong> or drag & drop</div>
-          <div class="upload-subtitle">PDF, TXT, MD, JSON (up to 25MB)</div>
+          <div class="upload-title">Choose file or drag & drop</div>
+          <div class="upload-subtitle">PDF, TXT, MD, Code files (up to 25MB)</div>
           <input type="file" id="file-upload-input" accept=".pdf,.txt,.md,.json,.csv,.py" style="display:none" onchange="handleFileSelect(event)">
         </div>
         <div id="upload-status" class="upload-status"></div>
 
         <details style="margin-top:0.25rem;">
-          <summary style="font-size:0.78rem; color:var(--text-secondary); cursor:pointer; font-weight:500;">Or enter text manually</summary>
-          <div style="display:flex; flex-direction:column; gap:0.6rem; margin-top:0.6rem;">
+          <summary style="font-size:0.75rem; color:var(--text-secondary); cursor:pointer; font-weight:500;">Enter text manually</summary>
+          <div style="display:flex; flex-direction:column; gap:0.5rem; margin-top:0.5rem;">
             <input type="text" id="ingest-title" class="input-box" placeholder="Document title...">
-            <textarea id="ingest-content" class="input-box" rows="3" placeholder="Document content or markdown..."></textarea>
+            <textarea id="ingest-content" class="input-box" rows="3" placeholder="Document content..."></textarea>
             <button class="btn-primary" onclick="ingestDocument()">
-              📥 Add Text to Index
+              Add to Index
             </button>
           </div>
         </details>
@@ -589,13 +631,13 @@ HTML_PAGE = """<!DOCTYPE html>
       <div class="search-panel">
         <div class="presets">
           <div class="preset-pill" onclick="applyQuery('What are the five essential steps of a standard PyTorch training loop?')">
-            🔥 PyTorch Training Loop (5 Steps)
+            PyTorch Training Loop (5 Steps)
           </div>
           <div class="preset-pill" onclick="applyQuery('What is RAG and how does it prevent LLM hallucination?')">
-            🧠 RAG Architecture & Grounding
+            RAG Architecture & Hallucination Grounding
           </div>
           <div class="preset-pill" onclick="applyQuery('What are the benefits of weight quantization and SIMD inference for deployment?')">
-            ⚡ Quantization & CPU Inference
+            Quantization & CPU Inference
           </div>
         </div>
 
@@ -608,7 +650,7 @@ HTML_PAGE = """<!DOCTYPE html>
             onkeydown="if(event.key === 'Enter') submitQuery()"
           >
           <button id="search-btn" class="submit-btn" onclick="submitQuery()">
-            Search ↵
+            Search
           </button>
         </div>
       </div>
@@ -616,8 +658,8 @@ HTML_PAGE = """<!DOCTYPE html>
       <div id="results-card" class="results-card">
         <div class="results-top">
           <div style="display:flex; align-items:center; gap:0.6rem;">
-            <span style="font-weight:700;">Answer:</span>
-            <span id="model-name" style="font-size:0.75rem; color:var(--text-secondary);"></span>
+            <span style="font-weight:600; font-size:0.85rem;">Answer:</span>
+            <span id="model-name" style="font-size:0.75rem; color:var(--text-secondary); font-family:'JetBrains Mono', monospace;"></span>
           </div>
           <div id="latency-badge" class="latency-badge"></div>
         </div>
@@ -625,32 +667,49 @@ HTML_PAGE = """<!DOCTYPE html>
         <div id="answer-body" class="answer-box"></div>
 
         <div>
-          <div class="citations-header">📚 Citation Provenance & Similarity Rankings</div>
+          <div class="citations-header">Retrieved Context Sources</div>
           <div id="citations-grid" class="citations-grid"></div>
         </div>
       </div>
     </section>
   </main>
 
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-left">
+        <span class="footer-brand">Neural RAG Engine</span>
+        <span class="footer-sep">&bull;</span>
+        <span>Dense Vector Retrieval & LLM Context Grounding</span>
+      </div>
+      <div class="footer-right">
+        <a href="https://github.com/ozodbek-bosimov/neural-rag-engine" target="_blank" class="footer-link">GitHub</a>
+        <span class="footer-sep">&bull;</span>
+        <span>MIT License</span>
+        <span class="footer-sep">&bull;</span>
+        <span>Ozodbek Bosimov</span>
+      </div>
+    </div>
+  </footer>
+
   <div id="settings-modal" class="modal-backdrop">
     <div class="modal-card">
       <div class="modal-head">
-        <h3 style="font-size:1.1rem; font-weight:700;">AI Engine & Model Settings</h3>
+        <h3 style="font-size:1rem; font-weight:600;">Engine & Model Settings</h3>
         <button class="modal-close-btn" onclick="closeSettings()">&times;</button>
       </div>
-      <p style="font-size:0.85rem; color:var(--text-secondary); line-height:1.5;">
+      <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.45;">
         Configure Google Gemini or OpenRouter API credentials to enable online LLM generation with citation grounding.
       </p>
       <div>
-        <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:0.4rem;">API Key (Google Gemini or OpenRouter):</label>
+        <label style="display:block; font-size:0.75rem; font-weight:600; margin-bottom:0.35rem; color:var(--text-secondary);">API Key (Google Gemini or OpenRouter):</label>
         <input type="password" id="api-key-input" class="input-box" placeholder="AQ... or AIza... or sk-...">
       </div>
       <div>
-        <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:0.4rem;">Target Model:</label>
+        <label style="display:block; font-size:0.75rem; font-weight:600; margin-bottom:0.35rem; color:var(--text-secondary);">Target Model:</label>
         <select id="model-select" class="input-box">
           <option value="gemini-flash-lite-latest">Google Gemini Flash-Lite (Fastest, Recommended)</option>
           <option value="gemini-flash-latest">Google Gemini Flash (Flagship)</option>
-          <option value="deepseek/deepseek-r1:free">DeepSeek-R1 via OpenRouter (Reasoning)</option>
+          <option value="deepseek/deepseek-r1:free">DeepSeek-R1 via OpenRouter</option>
           <option value="meta-llama/llama-3.3-70b-instruct:free">Meta Llama 3.3 70B via OpenRouter</option>
         </select>
       </div>
