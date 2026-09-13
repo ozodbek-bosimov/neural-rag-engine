@@ -56,6 +56,4 @@ python3 evaluate.py
 
 ---
 
-## License
-
-MIT
+[MIT License](LICENSE)
