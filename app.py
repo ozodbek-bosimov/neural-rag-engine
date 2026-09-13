@@ -206,23 +206,29 @@ HTML_PAGE = """<!DOCTYPE html>
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 0.5rem;
     }
     .doc-title {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 170px;
+      flex: 1;
+      min-width: 0;
       font-weight: 500;
       color: var(--text-primary);
+      display: flex;
+      align-items: center;
     }
     .chunk-tag {
       font-size: 0.68rem;
       color: #58a6ff;
       background: rgba(56, 139, 253, 0.1);
       border: 1px solid rgba(56, 139, 253, 0.2);
-      padding: 0.1rem 0.4rem;
+      padding: 0.15rem 0.45rem;
       border-radius: 4px;
       font-family: 'JetBrains Mono', monospace;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .delete-btn {
       background: transparent;
@@ -765,10 +771,15 @@ HTML_PAGE = """<!DOCTYPE html>
           div.className = 'doc-item';
           const docId = doc.document_id || doc.title || '';
           const title = doc.title || doc.document_id || '';
+          const count = doc.chunk_count || 0;
+          const chunkLabel = count === 1 ? '1 chunk' : `${count} chunks`;
           div.innerHTML = `
-            <span class="doc-title" title="${title}">📄 ${title}</span>
-            <div style="display:flex; align-items:center; gap:0.4rem;">
-              <span class="chunk-tag">${doc.chunk_count} chk</span>
+            <span class="doc-title" title="${title}">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" style="color:var(--text-secondary); flex-shrink:0; margin-right:6px;"><path d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h9.5a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 9 4.25V1.5Zm6.75.793V4.25c0 .138.112.25.25.25h2.457Z"/></svg>
+              <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${title}</span>
+            </span>
+            <div style="display:flex; align-items:center; gap:0.4rem; flex-shrink:0;">
+              <span class="chunk-tag">${chunkLabel}</span>
               <button class="delete-btn" onclick="deleteDocument('${encodeURIComponent(docId)}', '${encodeURIComponent(title)}')" title="Delete from knowledge index">✕</button>
             </div>
           `;
