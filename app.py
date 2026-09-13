@@ -1078,9 +1078,6 @@ HTML_PAGE = """<!DOCTYPE html>
     async function deleteDocument(encodedId, encodedTitle) {
       const docId = decodeURIComponent(encodedId);
       const title = decodeURIComponent(encodedTitle);
-      if (!confirm(`Are you sure you want to delete "${title}" from the knowledge base?`)) {
-        return;
-      }
       setUploadStatus(`Deleting ${title}...`, 'loading');
       try {
         const res = await apiFetch('/api/delete', {
