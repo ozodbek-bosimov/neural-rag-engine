@@ -77,6 +77,26 @@ class TestPipeline(unittest.TestCase):
         self.assertGreater(len(res["sources"]), 0)
         self.assertEqual(res["sources"][0]["document_id"], "faq.md")
 
+    def test_file_ingestion(self):
+        engine = RAGEngine()
+        # Test text file ingestion
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as f:
+            f.write("Batch normalization stabilizes neural network activations across mini-batches.")
+            temp_path = f.name
+
+        try:
+            chunks = engine.ingest_file(temp_path)
+            self.assertGreater(chunks, 0)
+            res = engine.query("What does batch normalization do?", top_k=1)
+            self.assertIn("answer", res)
+            self.assertGreater(len(res["sources"]), 0)
+        finally:
+            import os
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+
 
 if __name__ == "__main__":
     unittest.main()
+

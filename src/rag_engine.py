@@ -110,11 +110,38 @@ class RAGEngine:
         }
         return len(chunks)
 
+    def ingest_pdf(self, filename: str, pdf_bytes: bytes) -> int:
+        try:
+            import io
+            import pypdf
+            reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+            pages = []
+            for page in reader.pages:
+                txt = page.extract_text()
+                if txt and txt.strip():
+                    pages.append(txt.strip())
+            content = "\n\n".join(pages)
+            if not content:
+                return 0
+            title = filename.replace(".pdf", "").replace("_", " ").title()
+            return self.ingest_text(filename, title, content)
+        except Exception as e:
+            print(f"[!] PDF ingestion error ({filename}): {e}")
+            return 0
+
     def ingest_file(self, file_path: str) -> int:
         if not os.path.exists(file_path):
             return 0
 
         doc_id = os.path.basename(file_path)
+        if file_path.lower().endswith(".pdf"):
+            try:
+                with open(file_path, "rb") as f:
+                    return self.ingest_pdf(doc_id, f.read())
+            except Exception as e:
+                print(f"[!] Error reading PDF file {file_path}: {e}")
+                return 0
+
         title = doc_id.replace("_", " ").replace(".md", "").replace(".txt", "").title()
         try:
             with open(file_path, "r", encoding="utf-8") as f:
@@ -129,7 +156,11 @@ class RAGEngine:
         if not os.path.isdir(dir_path):
             return stats
 
-        files = sorted(glob.glob(os.path.join(dir_path, "*.md")) + glob.glob(os.path.join(dir_path, "*.txt")))
+        files = sorted(
+            glob.glob(os.path.join(dir_path, "*.md")) +
+            glob.glob(os.path.join(dir_path, "*.txt")) +
+            glob.glob(os.path.join(dir_path, "*.pdf"))
+        )
         for fp in files:
             doc_id = os.path.basename(fp)
             cnt = self.ingest_file(fp)

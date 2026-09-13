@@ -7,6 +7,7 @@ import os
 import sys
 import json
 import time
+import base64
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse
 
@@ -255,6 +256,61 @@ HTML_PAGE = """<!DOCTYPE html>
       background: #4f46e5;
     }
 
+    .upload-dropzone {
+      border: 2px dashed var(--border-subtle);
+      border-radius: 10px;
+      padding: 1.25rem 1rem;
+      text-align: center;
+      cursor: pointer;
+      background: rgba(31, 41, 55, 0.4);
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .upload-dropzone:hover, .upload-dropzone.dragover {
+      border-color: var(--accent-indigo);
+      background: rgba(99, 102, 241, 0.08);
+    }
+    .upload-icon {
+      font-size: 1.75rem;
+    }
+    .upload-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .upload-subtitle {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+    .upload-status {
+      font-size: 0.78rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      display: none;
+      line-height: 1.4;
+    }
+    .upload-status.success {
+      display: block;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .upload-status.loading {
+      display: block;
+      background: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+    .upload-status.error {
+      display: block;
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
     .main-view {
       display: flex;
       flex-direction: column;
@@ -486,13 +542,27 @@ HTML_PAGE = """<!DOCTYPE html>
 
       <div class="input-group">
         <div class="section-title">
-          <span>Ingest Document</span>
+          <span>Upload & Ingest</span>
         </div>
-        <input type="text" id="ingest-title" class="input-box" placeholder="Document title...">
-        <textarea id="ingest-content" class="input-box" rows="4" placeholder="Document content or markdown..."></textarea>
-        <button class="btn-primary" onclick="ingestDocument()">
-          📥 Add to Vector Store
-        </button>
+
+        <div class="upload-dropzone" id="upload-dropzone" onclick="document.getElementById('file-upload-input').click()">
+          <div class="upload-icon">📄</div>
+          <div class="upload-title"><strong>Choose file</strong> or drag & drop</div>
+          <div class="upload-subtitle">PDF, TXT, MD, JSON (up to 25MB)</div>
+          <input type="file" id="file-upload-input" accept=".pdf,.txt,.md,.json,.csv,.py" style="display:none" onchange="handleFileSelect(event)">
+        </div>
+        <div id="upload-status" class="upload-status"></div>
+
+        <details style="margin-top:0.25rem;">
+          <summary style="font-size:0.78rem; color:var(--text-secondary); cursor:pointer; font-weight:500;">Or enter text manually</summary>
+          <div style="display:flex; flex-direction:column; gap:0.6rem; margin-top:0.6rem;">
+            <input type="text" id="ingest-title" class="input-box" placeholder="Document title...">
+            <textarea id="ingest-content" class="input-box" rows="3" placeholder="Document content or markdown..."></textarea>
+            <button class="btn-primary" onclick="ingestDocument()">
+              📥 Add Text to Index
+            </button>
+          </div>
+        </details>
       </div>
     </aside>
 
@@ -704,7 +774,98 @@ HTML_PAGE = """<!DOCTYPE html>
       alert('Settings saved successfully.');
     }
 
-    window.addEventListener('DOMContentLoaded', refreshStats);
+    function setUploadStatus(message, type) {
+      const el = document.getElementById('upload-status');
+      if (!message) {
+        el.style.display = 'none';
+        el.className = 'upload-status';
+        el.textContent = '';
+        return;
+      }
+      el.textContent = message;
+      el.className = `upload-status ${type}`;
+    }
+
+    function setupDragAndDrop() {
+      const dropzone = document.getElementById('upload-dropzone');
+      if (!dropzone) return;
+
+      ['dragenter', 'dragover'].forEach(name => {
+        dropzone.addEventListener(name, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.add('dragover');
+        });
+      });
+
+      ['dragleave', 'drop'].forEach(name => {
+        dropzone.addEventListener(name, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          dropzone.classList.remove('dragover');
+        });
+      });
+
+      dropzone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files && files.length > 0) {
+          uploadFile(files[0]);
+        }
+      });
+    }
+
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        uploadFile(file);
+      }
+    }
+
+    function uploadFile(file) {
+      setUploadStatus(`Indexing ${file.name}...`, 'loading');
+      const isPdf = file.name.toLowerCase().endsWith('.pdf');
+      const reader = new FileReader();
+
+      if (isPdf) {
+        reader.onload = async function(e) {
+          const b64 = e.target.result;
+          await sendFilePayload(file.name, { base64: b64 });
+        };
+        reader.readAsDataURL(file);
+      } else {
+        reader.onload = async function(e) {
+          const txt = e.target.result;
+          await sendFilePayload(file.name, { text: txt });
+        };
+        reader.readAsText(file);
+      }
+    }
+
+    async function sendFilePayload(filename, payloadData) {
+      try {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: filename, ...payloadData })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setUploadStatus(`✓ Indexed ${filename} (${data.chunks_created} chunks added)`, 'success');
+          refreshStats();
+          setTimeout(() => setUploadStatus('', ''), 4500);
+        } else {
+          setUploadStatus(`Error: ${data.error || 'Failed to index file'}`, 'error');
+        }
+      } catch (err) {
+        setUploadStatus(`Upload error: ${err}`, 'error');
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      refreshStats();
+      setupDragAndDrop();
+    });
   </script>
 </body>
 </html>
@@ -776,6 +937,43 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
             res = engine.query(query_text, top_k=top_k, custom_model=custom_model)
             self._set_headers(200)
             self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        if path == "/api/upload":
+            filename = body.get("filename", "uploaded_doc").strip()
+            b64_data = body.get("base64")
+            text_data = body.get("text")
+
+            if b64_data:
+                try:
+                    if "," in b64_data:
+                        b64_data = b64_data.split(",", 1)[1]
+                    file_bytes = base64.b64decode(b64_data)
+                    if filename.lower().endswith(".pdf"):
+                        chunks_cnt = engine.ingest_pdf(filename, file_bytes)
+                    else:
+                        text = file_bytes.decode("utf-8", errors="ignore")
+                        title = filename.rsplit(".", 1)[0].replace("_", " ").title()
+                        chunks_cnt = engine.ingest_text(filename, title, text)
+                except Exception as e:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({"error": f"Failed to process file: {e}"}).encode("utf-8"))
+                    return
+            elif text_data:
+                title = filename.rsplit(".", 1)[0].replace("_", " ").title()
+                chunks_cnt = engine.ingest_text(filename, title, text_data)
+            else:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({"error": "No file content provided"}).encode("utf-8"))
+                return
+
+            self._set_headers(200)
+            self.wfile.write(json.dumps({
+                "status": "success",
+                "filename": filename,
+                "chunks_created": chunks_cnt,
+                "total_chunks": engine.vector_store.count()
+            }).encode("utf-8"))
             return
 
         if path == "/api/ingest":
