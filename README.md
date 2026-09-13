@@ -16,6 +16,17 @@ A lightweight Retrieval-Augmented Generation (RAG) system with dense vector retr
 
 ---
 
+## Tech Stack
+
+- **Core & Backend:** Python 3.13, Standard Library HTTP server, in-memory cosine vector store.
+- **Deep Learning:** PyTorch (`nn.Module` neural projection head, `CosineEmbeddingLoss`, contrastive training).
+- **LLM Grounding:** Google Gemini API & OpenRouter (DeepSeek-R1, Meta Llama 3) with offline semantic fallback.
+- **Document Processing:** PDF extraction (`pypdf`), sentence-aware sliding window chunker.
+- **Frontend Dashboard:** Vanilla HTML5, Modern CSS (Dark theme design system), JavaScript, Marked.js.
+- **Deployment & Hosting:** Apache HTTP Server (CGI gateway), Alwaysdata Cloud Platform.
+
+---
+
 ## Quick Start
 
 ### 1. Installation
@@ -34,7 +45,7 @@ python3 app.py 8085
 
 Open [http://localhost:8085](http://localhost:8085) in your browser.
 
-### 3. Run Tests
+### 3. Run Tests & Evaluation
 
 ```bash
 python3 -m unittest tests/test_pipeline.py
@@ -55,5 +66,7 @@ python3 evaluate.py
 | `POST` | `/api/delete` | Delete a document from the current session |
 
 ---
+
+## License
 
 [MIT License](LICENSE)
