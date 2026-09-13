@@ -8,17 +8,53 @@ import sys
 import json
 import time
 import base64
+import threading
+from typing import Dict, Any, Optional
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from src.rag_engine import RAGEngine
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "sample_docs")
 
-engine = RAGEngine()
-if os.path.exists(DATA_DIR):
-    engine.ingest_directory(DATA_DIR)
+# Multi-session state management
+# Each browser load/refresh generates an isolated in-memory session initialized with sample documents.
+session_lock = threading.Lock()
+sessions: Dict[str, Dict[str, Any]] = {}
+GLOBAL_API_KEY = os.getenv("GEMINI_API_KEY")
+GLOBAL_MODEL = "gemini-flash-lite-latest"
+MAX_SESSIONS = 100
+SESSION_TTL = 3600  # 1 hour
+
+def cleanup_old_sessions():
+    now = time.time()
+    expired = [sid for sid, s in sessions.items() if now - s["last_active"] > SESSION_TTL]
+    for sid in expired:
+        del sessions[sid]
+    if len(sessions) > MAX_SESSIONS:
+        sorted_s = sorted(sessions.items(), key=lambda x: x[1]["last_active"])
+        for sid, _ in sorted_s[: len(sessions) - MAX_SESSIONS]:
+            del sessions[sid]
+
+def get_engine_for_session(session_id: str) -> RAGEngine:
+    with session_lock:
+        cleanup_old_sessions()
+        sid = (session_id or "default").strip()
+        if sid in sessions:
+            sessions[sid]["last_active"] = time.time()
+            return sessions[sid]["engine"]
+        
+        # Fresh isolated session populated with default sample documents
+        eng = RAGEngine(api_key=GLOBAL_API_KEY, model_name=GLOBAL_MODEL)
+        if os.path.exists(DATA_DIR):
+            eng.ingest_directory(DATA_DIR)
+        
+        sessions[sid] = {
+            "engine": eng,
+            "last_active": time.time()
+        }
+        return eng
 
 
 HTML_PAGE = """<!DOCTYPE html>
@@ -245,6 +281,22 @@ HTML_PAGE = """<!DOCTYPE html>
       color: #f85149;
       background: rgba(248, 81, 73, 0.12);
       border-color: rgba(248, 81, 73, 0.3);
+    }
+    .reset-btn {
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      cursor: pointer;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      line-height: 1.2;
+      color: var(--text-muted);
+      transition: all 0.15s ease;
+    }
+    .reset-btn:hover {
+      color: var(--text-primary);
+      border-color: #8b949e;
+      background: var(--bg-card);
     }
 
     .input-group {
@@ -635,7 +687,10 @@ HTML_PAGE = """<!DOCTYPE html>
     <aside class="sidebar">
       <div class="section-title">
         <span>Knowledge Base</span>
-        <span id="doc-badge" class="chunk-tag">0 Docs</span>
+        <div style="display:flex; align-items:center; gap:0.4rem;">
+          <span id="doc-badge" class="chunk-tag">0 Docs</span>
+          <button type="button" onclick="location.reload()" class="reset-btn" title="Refresh / Start new clean session">↺</button>
+        </div>
       </div>
 
       <div class="stats-row">
@@ -756,9 +811,22 @@ HTML_PAGE = """<!DOCTYPE html>
   </div>
 
   <script>
+    // Isolated in-memory session per page load or browser refresh
+    const SESSION_ID = 'sess_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+
+    function apiFetch(url, options = {}) {
+      options.headers = options.headers || {};
+      options.headers['X-Session-ID'] = SESSION_ID;
+      if (!options.headers['Content-Type'] && options.body && typeof options.body === 'string') {
+        options.headers['Content-Type'] = 'application/json';
+      }
+      const separator = url.includes('?') ? '&' : '?';
+      return fetch(url + separator + 'session_id=' + encodeURIComponent(SESSION_ID), options);
+    }
+
     async function refreshStats() {
       try {
-        const res = await fetch('/api/stats');
+        const res = await apiFetch('/api/stats');
         const data = await res.json();
         document.getElementById('stat-chunks').textContent = data.total_chunks;
         document.getElementById('stat-dim').textContent = data.embedding_dimension;
@@ -812,9 +880,8 @@ HTML_PAGE = """<!DOCTYPE html>
 
       try {
         const savedModel = localStorage.getItem('rag_model') || 'deepseek/deepseek-r1:free';
-        const res = await fetch('/api/query', {
+        const res = await apiFetch('/api/query', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: query, model: savedModel })
         });
         const data = await res.json();
@@ -878,9 +945,8 @@ HTML_PAGE = """<!DOCTYPE html>
 
       setUploadStatus(`Indexing ${title}...`, 'loading');
       try {
-        const res = await fetch('/api/ingest', {
+        const res = await apiFetch('/api/ingest', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title: title, content: content })
         });
         const data = await res.json();
@@ -914,9 +980,8 @@ HTML_PAGE = """<!DOCTYPE html>
       if (key) localStorage.setItem('api_key', key);
       localStorage.setItem('rag_model', model);
 
-      await fetch('/api/settings', {
+      await apiFetch('/api/settings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ api_key: key, model: model })
       });
       closeSettings();
@@ -993,9 +1058,8 @@ HTML_PAGE = """<!DOCTYPE html>
 
     async function sendFilePayload(filename, payloadData) {
       try {
-        const res = await fetch('/api/upload', {
+        const res = await apiFetch('/api/upload', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ filename: filename, ...payloadData })
         });
         const data = await res.json();
@@ -1019,9 +1083,8 @@ HTML_PAGE = """<!DOCTYPE html>
       }
       setUploadStatus(`Deleting ${title}...`, 'loading');
       try {
-        const res = await fetch('/api/delete', {
+        const res = await apiFetch('/api/delete', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ document_id: docId })
         });
         const data = await res.json();
@@ -1054,8 +1117,26 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", content_type)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Session-ID")
         self.end_headers()
+
+    def _get_session_id(self, body_data: Optional[Dict] = None) -> str:
+        sid = self.headers.get("X-Session-ID")
+        if sid and sid.strip():
+            return sid.strip()
+        parsed = urlparse(self.path)
+        qs = parse_qs(parsed.query)
+        if "session_id" in qs and qs["session_id"]:
+            return qs["session_id"][0].strip()
+        if body_data and isinstance(body_data, dict):
+            bsid = body_data.get("session_id")
+            if bsid and str(bsid).strip():
+                return str(bsid).strip()
+        return "default"
+
+    def _get_engine(self, body_data: Optional[Dict] = None) -> RAGEngine:
+        sid = self._get_session_id(body_data)
+        return get_engine_for_session(sid)
 
     def do_OPTIONS(self):
         self._set_headers(200)
@@ -1070,17 +1151,20 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/stats":
+            engine = self._get_engine()
             stats = engine.get_system_stats()
             self._set_headers(200)
             self.wfile.write(json.dumps(stats).encode("utf-8"))
             return
 
         if path == "/api/health":
+            engine = self._get_engine()
             self._set_headers(200)
             self.wfile.write(json.dumps({
                 "status": "healthy",
                 "indexed_documents": len(engine.indexed_docs),
-                "indexed_chunks": engine.vector_store.count()
+                "indexed_chunks": engine.vector_store.count(),
+                "active_sessions": len(sessions)
             }).encode("utf-8"))
             return
 
@@ -1098,6 +1182,8 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
             body = json.loads(post_body)
         except Exception:
             body = {}
+
+        engine = self._get_engine(body)
 
         if path == "/api/query":
             query_text = body.get("query", "").strip()
@@ -1200,7 +1286,9 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
         if path == "/api/settings":
             api_key = body.get("api_key", "").strip()
             model = body.get("model", "").strip()
+            global GLOBAL_API_KEY, GLOBAL_MODEL
             if api_key:
+                GLOBAL_API_KEY = api_key
                 if api_key.startswith("AQ.") or "AIza" in api_key:
                     engine.llm_client.gemini_key = api_key
                     engine.llm_client.provider = "Google Gemini"
@@ -1209,6 +1297,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                     engine.llm_client.provider = "OpenRouter"
                 engine.llm_client.api_key = api_key
             if model:
+                GLOBAL_MODEL = model
                 engine.llm_client.model = model
             self._set_headers(200)
             self.wfile.write(json.dumps({
