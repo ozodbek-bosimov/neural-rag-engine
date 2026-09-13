@@ -15,9 +15,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from src.rag_engine import RAGEngine
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "sample_docs")
+UPLOADS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "uploads")
+os.makedirs(UPLOADS_DIR, exist_ok=True)
+
 engine = RAGEngine()
 if os.path.exists(DATA_DIR):
     engine.ingest_directory(DATA_DIR)
+if os.path.exists(UPLOADS_DIR):
+    engine.ingest_directory(UPLOADS_DIR)
 
 
 HTML_PAGE = """<!DOCTYPE html>
@@ -1103,7 +1108,8 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/upload":
-            filename = body.get("filename", "uploaded_doc").strip()
+            raw_filename = body.get("filename", "uploaded_doc").strip()
+            filename = os.path.basename(raw_filename)
             b64_data = body.get("base64")
             text_data = body.get("text")
 
@@ -1112,6 +1118,10 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                     if "," in b64_data:
                         b64_data = b64_data.split(",", 1)[1]
                     file_bytes = base64.b64decode(b64_data)
+                    disk_fp = os.path.join(UPLOADS_DIR, filename)
+                    with open(disk_fp, "wb") as f:
+                        f.write(file_bytes)
+
                     if filename.lower().endswith(".pdf"):
                         chunks_cnt = engine.ingest_pdf(filename, file_bytes)
                     else:
@@ -1123,8 +1133,16 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps({"error": f"Failed to process file: {e}"}).encode("utf-8"))
                     return
             elif text_data:
-                title = filename.rsplit(".", 1)[0].replace("_", " ").title()
-                chunks_cnt = engine.ingest_text(filename, title, text_data)
+                try:
+                    disk_fp = os.path.join(UPLOADS_DIR, filename)
+                    with open(disk_fp, "w", encoding="utf-8") as f:
+                        f.write(text_data)
+                    title = filename.rsplit(".", 1)[0].replace("_", " ").title()
+                    chunks_cnt = engine.ingest_text(filename, title, text_data)
+                except Exception as e:
+                    self._set_headers(400)
+                    self.wfile.write(json.dumps({"error": f"Failed to save text: {e}"}).encode("utf-8"))
+                    return
             else:
                 self._set_headers(400)
                 self.wfile.write(json.dumps({"error": "No file content provided"}).encode("utf-8"))
@@ -1147,6 +1165,16 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                 return
 
             deleted_chunks = engine.delete_document(document_id)
+
+            # Also delete physical file from UPLOADS_DIR if it exists
+            safe_id = os.path.basename(document_id)
+            upload_fp = os.path.join(UPLOADS_DIR, safe_id)
+            if os.path.exists(upload_fp):
+                try:
+                    os.remove(upload_fp)
+                except Exception as e:
+                    print(f"[!] Warning deleting file from disk: {e}")
+
             self._set_headers(200)
             self.wfile.write(json.dumps({
                 "status": "success",
@@ -1157,22 +1185,30 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
             }).encode("utf-8"))
             return
 
-
         if path == "/api/ingest":
             title = body.get("title", "Document").strip()
             content = body.get("content", "").strip()
             doc_id = title.lower().replace(" ", "_") + ".txt"
+            safe_doc_id = os.path.basename(doc_id)
 
             if not content:
                 self._set_headers(400)
                 self.wfile.write(json.dumps({"error": "Document content is empty"}).encode("utf-8"))
                 return
 
-            chunks_cnt = engine.ingest_text(doc_id, title, content)
+            # Persist to UPLOADS_DIR
+            try:
+                disk_fp = os.path.join(UPLOADS_DIR, safe_doc_id)
+                with open(disk_fp, "w", encoding="utf-8") as f:
+                    f.write(content)
+            except Exception as e:
+                print(f"[!] Warning persisting direct text to disk: {e}")
+
+            chunks_cnt = engine.ingest_text(safe_doc_id, title, content)
             self._set_headers(200)
             self.wfile.write(json.dumps({
                 "status": "success",
-                "document_id": doc_id,
+                "document_id": safe_doc_id,
                 "chunks_created": chunks_cnt
             }).encode("utf-8"))
             return
