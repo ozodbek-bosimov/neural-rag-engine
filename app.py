@@ -909,15 +909,11 @@ HTML_PAGE = r"""<!DOCTYPE html>
         <button class="modal-close-btn" onclick="closeSettings()">&times;</button>
       </div>
       <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.45;">
-        Configure Google Gemini or OpenRouter API credentials to enable online LLM generation with citation grounding. A default Gemini API key is pre-configured and active for all visitors.
+        Configure Google Gemini or OpenRouter API credentials to enable online LLM generation with citation grounding.
       </p>
       <div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
-          <label style="font-size:0.75rem; font-weight:600; color:var(--text-secondary);">API Key (Google Gemini or OpenRouter):</label>
-          <span style="font-size:0.7rem; color:var(--accent-primary); font-weight:500;">✓ Pre-configured default key</span>
-        </div>
-        <input type="text" id="api-key-input" class="input-box" style="font-family:'JetBrains Mono',monospace; font-size:0.8rem;" placeholder="AQ... or AIza... or sk-...">
-        <div style="font-size:0.72rem; color:var(--text-muted); margin-top:0.3rem;">Default Gemini key is globally active. You can also paste your own key.</div>
+        <label style="display:block; font-size:0.75rem; font-weight:600; margin-bottom:0.35rem; color:var(--text-secondary);">API Key (Google Gemini or OpenRouter):</label>
+        <input type="password" id="api-key-input" class="input-box" placeholder="Optional — leave empty to use default">
       </div>
       <div>
         <label style="display:block; font-size:0.75rem; font-weight:600; margin-bottom:0.35rem; color:var(--text-secondary);">Target Model:</label>
@@ -1291,7 +1287,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
     function openSettings() {
       document.getElementById('settings-modal').style.display = 'flex';
-      document.getElementById('api-key-input').value = localStorage.getItem('api_key') || DEFAULT_GEMINI_KEY;
+      document.getElementById('api-key-input').value = localStorage.getItem('api_key') || '';
       document.getElementById('model-select').value = localStorage.getItem('rag_model') || DEFAULT_MODEL;
     }
 
