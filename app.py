@@ -366,7 +366,12 @@ HTML_PAGE = r"""<!DOCTYPE html>
       background: var(--accent-green-hover);
     }
 
+    .ingest-panel {
+      height: 156px;
+      box-sizing: border-box;
+    }
     .upload-dropzone {
+      height: 156px;
       border: 1px dashed var(--border-subtle);
       border-radius: 6px;
       padding: 1rem 0.85rem;
@@ -377,7 +382,9 @@ HTML_PAGE = r"""<!DOCTYPE html>
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.25rem;
+      justify-content: center;
+      gap: 0.35rem;
+      box-sizing: border-box;
     }
     .upload-dropzone:hover, .upload-dropzone.dragover {
       border-color: var(--border-focus);
@@ -391,6 +398,38 @@ HTML_PAGE = r"""<!DOCTYPE html>
     .upload-subtitle {
       font-size: 0.7rem;
       color: var(--text-muted);
+    }
+    #ingest-text-view {
+      height: 156px;
+      box-sizing: border-box;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+    #ingest-text-view .input-box#ingest-title {
+      height: 32px;
+      padding: 0.45rem 0.65rem;
+      font-size: 0.8rem;
+      box-sizing: border-box;
+      flex-shrink: 0;
+    }
+    #ingest-text-view textarea#ingest-content {
+      flex: 1;
+      min-height: 0;
+      resize: none;
+      padding: 0.45rem 0.65rem;
+      font-size: 0.8rem;
+      box-sizing: border-box;
+      font-family: inherit;
+    }
+    #ingest-text-view .btn-primary {
+      height: 32px;
+      padding: 0.45rem 0.65rem;
+      font-size: 0.8rem;
+      box-sizing: border-box;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .upload-status {
       font-size: 0.75rem;
@@ -779,17 +818,18 @@ HTML_PAGE = r"""<!DOCTYPE html>
           <button type="button" id="tab-btn-text" class="ingest-tab" onclick="switchIngestTab('text')">Direct Text</button>
         </div>
 
-        <div id="ingest-file-view">
+        <div id="ingest-file-view" class="ingest-panel">
           <div class="upload-dropzone" id="upload-dropzone" onclick="document.getElementById('file-upload-input').click()">
+            <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor" style="color:var(--text-secondary); margin-bottom:2px;"><path d="M7.47 10.78a.75.75 0 0 0 1.06 0l3.75-3.75a.75.75 0 0 0-1.06-1.06L8.75 8.44V1.75a.75.75 0 0 0-1.5 0v6.69L4.78 5.97a.75.75 0 0 0-1.06 1.06l3.75 3.75ZM3.75 13a.75.75 0 0 0 0 1.5h8.5a.75.75 0 0 0 0-1.5h-8.5Z"/></svg>
             <div class="upload-title">Choose file or drag & drop</div>
             <div class="upload-subtitle">PDF, TXT, MD, Code files (up to 25MB)</div>
             <input type="file" id="file-upload-input" accept=".pdf,.txt,.md,.json,.csv,.py" style="display:none" onchange="handleFileSelect(event)">
           </div>
         </div>
 
-        <div id="ingest-text-view" style="display:none; flex-direction:column; gap:0.5rem;">
+        <div id="ingest-text-view" class="ingest-panel" style="display:none;">
           <input type="text" id="ingest-title" class="input-box" placeholder="Document title...">
-          <textarea id="ingest-content" class="input-box" rows="3" placeholder="Paste document content or markdown..."></textarea>
+          <textarea id="ingest-content" class="input-box" placeholder="Paste document content or markdown..."></textarea>
           <button class="btn-primary" onclick="ingestDocument()">
             Add to Index
           </button>
