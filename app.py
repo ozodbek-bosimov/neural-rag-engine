@@ -219,6 +219,25 @@ HTML_PAGE = """<!DOCTYPE html>
       font-weight: 600;
       font-family: 'JetBrains Mono', monospace;
     }
+    .delete-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+      opacity: 0.5;
+      transition: all 0.15s ease;
+      font-size: 0.75rem;
+      line-height: 1;
+      color: var(--text-secondary);
+    }
+    .delete-btn:hover {
+      opacity: 1;
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.3);
+      transform: scale(1.08);
+    }
 
     .input-group {
       display: flex;
@@ -655,9 +674,14 @@ HTML_PAGE = """<!DOCTYPE html>
         data.indexed_documents.forEach(doc => {
           const div = document.createElement('div');
           div.className = 'doc-item';
+          const docId = doc.document_id || doc.title || '';
+          const title = doc.title || doc.document_id || '';
           div.innerHTML = `
-            <span class="doc-title" title="${doc.title}">📄 ${doc.title}</span>
-            <span class="chunk-tag">${doc.chunk_count} chk</span>
+            <span class="doc-title" title="${title}">📄 ${title}</span>
+            <div style="display:flex; align-items:center; gap:0.4rem;">
+              <span class="chunk-tag">${doc.chunk_count} chk</span>
+              <button class="delete-btn" onclick="deleteDocument('${encodeURIComponent(docId)}', '${encodeURIComponent(title)}')" title="Delete from knowledge index">✕</button>
+            </div>
           `;
           listEl.appendChild(div);
         });
@@ -862,6 +886,32 @@ HTML_PAGE = """<!DOCTYPE html>
       }
     }
 
+    async function deleteDocument(encodedId, encodedTitle) {
+      const docId = decodeURIComponent(encodedId);
+      const title = decodeURIComponent(encodedTitle);
+      if (!confirm(`Are you sure you want to delete "${title}" from the knowledge base?`)) {
+        return;
+      }
+      setUploadStatus(`Deleting ${title}...`, 'loading');
+      try {
+        const res = await fetch('/api/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ document_id: docId })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setUploadStatus(`✓ Deleted "${title}" (${data.deleted_chunks} chunks removed)`, 'success');
+          refreshStats();
+          setTimeout(() => setUploadStatus('', ''), 3500);
+        } else {
+          setUploadStatus(`Error: ${data.error || 'Failed to delete document'}`, 'error');
+        }
+      } catch (err) {
+        setUploadStatus(`Delete error: ${err}`, 'error');
+      }
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       refreshStats();
       setupDragAndDrop();
@@ -975,6 +1025,25 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                 "total_chunks": engine.vector_store.count()
             }).encode("utf-8"))
             return
+
+        if path == "/api/delete":
+            document_id = body.get("document_id", "").strip()
+            if not document_id:
+                self._set_headers(400)
+                self.wfile.write(json.dumps({"error": "document_id is required"}).encode("utf-8"))
+                return
+
+            deleted_chunks = engine.delete_document(document_id)
+            self._set_headers(200)
+            self.wfile.write(json.dumps({
+                "status": "success",
+                "document_id": document_id,
+                "deleted_chunks": deleted_chunks,
+                "total_documents": len(engine.indexed_docs),
+                "total_chunks": engine.vector_store.count()
+            }).encode("utf-8"))
+            return
+
 
         if path == "/api/ingest":
             title = body.get("title", "Document").strip()

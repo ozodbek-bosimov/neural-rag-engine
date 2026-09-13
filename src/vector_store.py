@@ -38,6 +38,26 @@ class VectorStore:
     def count(self) -> int:
         return len(self.metadata)
 
+    def delete_by_document_id(self, document_id: str) -> int:
+        if not document_id or not document_id.strip() or not self.metadata:
+            return 0
+        new_vectors = []
+        new_metadata = []
+        deleted_count = 0
+        doc_lower = document_id.strip().lower()
+        for vec, meta in zip(self.vectors, self.metadata):
+            m_id = str(meta.get("document_id", "")).lower()
+            m_title = str(meta.get("document_title", "")).lower()
+            if m_id == doc_lower or m_title == doc_lower:
+                deleted_count += 1
+            else:
+                new_vectors.append(vec)
+                new_metadata.append(meta)
+        self.vectors = new_vectors
+        self.metadata = new_metadata
+        return deleted_count
+
     def clear(self):
         self.vectors.clear()
         self.metadata.clear()
+

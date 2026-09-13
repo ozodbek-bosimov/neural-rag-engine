@@ -104,6 +104,7 @@ class RAGEngine:
 
         self.vector_store.add(embeddings, metadata_list)
         self.indexed_docs[document_id] = {
+            "document_id": document_id,
             "title": title,
             "chunk_count": len(chunks),
             "char_count": len(content)
@@ -231,6 +232,28 @@ class RAGEngine:
             "context_length": len(full_context)
         }
 
+    def delete_document(self, identifier: str) -> int:
+        if not identifier or not str(identifier).strip():
+            return 0
+        target_id = None
+        id_lower = str(identifier).strip().lower()
+
+        for doc_id, meta in list(self.indexed_docs.items()):
+            if doc_id.lower() == id_lower or meta.get("title", "").lower() == id_lower:
+                target_id = doc_id
+                break
+
+        if target_id and target_id in self.indexed_docs:
+            del self.indexed_docs[target_id]
+        elif identifier in self.indexed_docs:
+            del self.indexed_docs[identifier]
+            target_id = identifier
+        else:
+            target_id = identifier
+
+        deleted_chunks = self.vector_store.delete_by_document_id(target_id)
+        return deleted_chunks
+
     def get_system_stats(self) -> Dict[str, Any]:
         return {
             "total_documents": len(self.indexed_docs),
@@ -239,3 +262,4 @@ class RAGEngine:
             "indexed_documents": list(self.indexed_docs.values()),
             "llm_api_configured": self.llm_client.api_key is not None
         }
+

@@ -96,7 +96,23 @@ class TestPipeline(unittest.TestCase):
             if os.path.exists(temp_path):
                 os.remove(temp_path)
 
+    def test_delete_document(self):
+        engine = RAGEngine()
+        engine.ingest_text(
+            document_id="temp_doc.txt",
+            title="Temporary Doc",
+            content="This document will be deleted from the vector index."
+        )
+        self.assertIn("temp_doc.txt", engine.indexed_docs)
+        self.assertGreater(engine.vector_store.count(), 0)
+
+        deleted = engine.delete_document("temp_doc.txt")
+        self.assertGreater(deleted, 0)
+        self.assertNotIn("temp_doc.txt", engine.indexed_docs)
+        self.assertEqual(engine.vector_store.count(), 0)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
