@@ -892,40 +892,130 @@ HTML_PAGE = r"""<!DOCTYPE html>
       if (typeof marked !== 'undefined' && typeof marked.parse === 'function') {
         try {
           return marked.parse(md);
-        } catch (e) {
-          console.warn('marked error, using fallback:', e);
-        }
+        } catch (e) {}
       }
-      let html = md
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
 
-      html = html.replace(/```([a-z0-9_-]*)\n([\s\S]*?)```/gim, (m, lang, code) => `<pre><code>${code.trim()}</code></pre>`);
-      html = html.replace(/```([\s\S]*?)```/gim, (m, code) => `<pre><code>${code.trim()}</code></pre>`);
-      html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+      const text = md.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-      html = html.replace(/^### (.*$)/gim, '<h4>$1</h4>');
-      html = html.replace(/^## (.*$)/gim, '<h3>$1</h3>');
-      html = html.replace(/^# (.*$)/gim, '<h2>$1</h2>');
+      function parseInline(str) {
+        let s = str
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
 
-      html = html.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
-      html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-      html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+        s = s.replace(/\*\*\*([^\*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
+        s = s.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
+        s = s.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+        s = s.replace(/(^|[^\*])\*([^\*\s][^\*]*[^\*\s]|[^\*\s])\*([^\*]|$)/g, '$1<em>$2</em>$3');
+        s = s.replace(/(^|[^_])_([^_\s][^_]*[^_\s]|[^_\s])_([^_]|$)/g, '$1<em>$2</em>$3');
+        return s;
+      }
 
-      html = html.replace(/^\s*[\*\-]\s+(.*)$/gim, '<li>$1</li>');
-      html = html.replace(/(<li>[\s\S]*?<\/li>)/gim, '<ul>$1</ul>');
-      html = html.replace(/<\/ul>\s*<ul>/gim, '');
+      const lines = text.split('\n');
+      const output = [];
+      let inList = false;
+      let listType = 'ul';
+      let inCodeBlock = false;
+      let codeBuffer = [];
 
-      const lines = html.split(/\n\n+/);
-      return lines.map(p => {
-        p = p.trim();
-        if (!p) return '';
-        if (/^<(h[1-6]|ul|ol|pre|blockquote)/i.test(p)) {
-          return p;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        if (line.trim().startsWith('```')) {
+          if (inCodeBlock) {
+            inCodeBlock = false;
+            const codeText = codeBuffer.join('\n')
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;');
+            output.push(`<pre><code>${codeText}</code></pre>`);
+            codeBuffer = [];
+          } else {
+            if (inList) {
+              output.push(`</${listType}>`);
+              inList = false;
+            }
+            inCodeBlock = true;
+          }
+          continue;
         }
-        return `<p>${p.replace(/\n/g, '<br>')}</p>`;
-      }).join('\n');
+
+        if (inCodeBlock) {
+          codeBuffer.push(line);
+          continue;
+        }
+
+        if (!line.trim()) {
+          if (inList) {
+            output.push(`</${listType}>`);
+            inList = false;
+          }
+          continue;
+        }
+
+        const ulMatch = line.match(/^\s*[\*\-]\s+(.*)$/);
+        if (ulMatch) {
+          if (!inList || listType !== 'ul') {
+            if (inList) output.push(`</${listType}>`);
+            output.push('<ul>');
+            inList = true;
+            listType = 'ul';
+          }
+          output.push(`<li>${parseInline(ulMatch[1])}</li>`);
+          continue;
+        }
+
+        const olMatch = line.match(/^\s*(\d+)\.\s+(.*)$/);
+        if (olMatch) {
+          if (!inList || listType !== 'ol') {
+            if (inList) output.push(`</${listType}>`);
+            output.push('<ol>');
+            inList = true;
+            listType = 'ol';
+          }
+          output.push(`<li>${parseInline(olMatch[2])}</li>`);
+          continue;
+        }
+
+        if (inList) {
+          output.push(`</${listType}>`);
+          inList = false;
+        }
+
+        if (line.startsWith('### ')) {
+          output.push(`<h4>${parseInline(line.substring(4))}</h4>`);
+          continue;
+        }
+        if (line.startsWith('## ')) {
+          output.push(`<h3>${parseInline(line.substring(3))}</h3>`);
+          continue;
+        }
+        if (line.startsWith('# ')) {
+          output.push(`<h2>${parseInline(line.substring(2))}</h2>`);
+          continue;
+        }
+
+        if (line.startsWith('> ')) {
+          output.push(`<blockquote>${parseInline(line.substring(2))}</blockquote>`);
+          continue;
+        }
+
+        output.push(`<p>${parseInline(line)}</p>`);
+      }
+
+      if (inList) {
+        output.push(`</${listType}>`);
+      }
+      if (inCodeBlock) {
+        const codeText = codeBuffer.join('\n')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        output.push(`<pre><code>${codeText}</code></pre>`);
+      }
+
+      return output.join('\n');
     }
 
     async function refreshStats() {
