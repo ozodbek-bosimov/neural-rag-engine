@@ -245,6 +245,38 @@ HTML_PAGE = """<!DOCTYPE html>
       flex-direction: column;
       gap: 0.6rem;
     }
+    .ingest-tabs {
+      display: flex;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 2px;
+      gap: 2px;
+      margin-bottom: 0.2rem;
+    }
+    .ingest-tab {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      padding: 0.35rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s ease;
+      text-align: center;
+    }
+    .ingest-tab:hover {
+      color: var(--text-primary);
+    }
+    .ingest-tab.active {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      font-weight: 600;
+    }
     .input-box {
       width: 100%;
       background: var(--bg-card);
@@ -617,23 +649,28 @@ HTML_PAGE = """<!DOCTYPE html>
           <span>Upload & Ingest</span>
         </div>
 
-        <div class="upload-dropzone" id="upload-dropzone" onclick="document.getElementById('file-upload-input').click()">
-          <div class="upload-title">Choose file or drag & drop</div>
-          <div class="upload-subtitle">PDF, TXT, MD, Code files (up to 25MB)</div>
-          <input type="file" id="file-upload-input" accept=".pdf,.txt,.md,.json,.csv,.py" style="display:none" onchange="handleFileSelect(event)">
+        <div class="ingest-tabs">
+          <button type="button" id="tab-btn-file" class="ingest-tab active" onclick="switchIngestTab('file')">Upload File</button>
+          <button type="button" id="tab-btn-text" class="ingest-tab" onclick="switchIngestTab('text')">Direct Text</button>
         </div>
-        <div id="upload-status" class="upload-status"></div>
 
-        <details style="margin-top:0.25rem;">
-          <summary style="font-size:0.75rem; color:var(--text-secondary); cursor:pointer; font-weight:500;">Enter text manually</summary>
-          <div style="display:flex; flex-direction:column; gap:0.5rem; margin-top:0.5rem;">
-            <input type="text" id="ingest-title" class="input-box" placeholder="Document title...">
-            <textarea id="ingest-content" class="input-box" rows="3" placeholder="Document content..."></textarea>
-            <button class="btn-primary" onclick="ingestDocument()">
-              Add to Index
-            </button>
+        <div id="ingest-file-view">
+          <div class="upload-dropzone" id="upload-dropzone" onclick="document.getElementById('file-upload-input').click()">
+            <div class="upload-title">Choose file or drag & drop</div>
+            <div class="upload-subtitle">PDF, TXT, MD, Code files (up to 25MB)</div>
+            <input type="file" id="file-upload-input" accept=".pdf,.txt,.md,.json,.csv,.py" style="display:none" onchange="handleFileSelect(event)">
           </div>
-        </details>
+        </div>
+
+        <div id="ingest-text-view" style="display:none; flex-direction:column; gap:0.5rem;">
+          <input type="text" id="ingest-title" class="input-box" placeholder="Document title...">
+          <textarea id="ingest-content" class="input-box" rows="3" placeholder="Paste document content or markdown..."></textarea>
+          <button class="btn-primary" onclick="ingestDocument()">
+            Add to Index
+          </button>
+        </div>
+
+        <div id="upload-status" class="upload-status"></div>
       </div>
     </aside>
 
@@ -800,14 +837,34 @@ HTML_PAGE = """<!DOCTYPE html>
       }
     }
 
+    function switchIngestTab(tab) {
+      const fileTab = document.getElementById('tab-btn-file');
+      const textTab = document.getElementById('tab-btn-text');
+      const fileView = document.getElementById('ingest-file-view');
+      const textView = document.getElementById('ingest-text-view');
+
+      if (tab === 'file') {
+        fileTab.classList.add('active');
+        textTab.classList.remove('active');
+        fileView.style.display = 'block';
+        textView.style.display = 'none';
+      } else {
+        textTab.classList.add('active');
+        fileTab.classList.remove('active');
+        fileView.style.display = 'none';
+        textView.style.display = 'flex';
+      }
+    }
+
     async function ingestDocument() {
-      const title = document.getElementById('ingest-title').value.trim();
+      const title = document.getElementById('ingest-title').value.trim() || 'Custom Document';
       const content = document.getElementById('ingest-content').value.trim();
-      if (!title || !content) {
-        alert('Please provide both title and content.');
+      if (!content) {
+        setUploadStatus('Please enter document content before indexing.', 'error');
         return;
       }
 
+      setUploadStatus(`Indexing ${title}...`, 'loading');
       try {
         const res = await fetch('/api/ingest', {
           method: 'POST',
@@ -815,12 +872,17 @@ HTML_PAGE = """<!DOCTYPE html>
           body: JSON.stringify({ title: title, content: content })
         });
         const data = await res.json();
-        alert(`Ingestion complete! ${data.chunks_created} chunks added.`);
-        document.getElementById('ingest-title').value = '';
-        document.getElementById('ingest-content').value = '';
-        refreshStats();
+        if (res.ok) {
+          setUploadStatus(`✓ Indexed "${title}" (${data.chunks_created} chunks added)`, 'success');
+          document.getElementById('ingest-title').value = '';
+          document.getElementById('ingest-content').value = '';
+          refreshStats();
+          setTimeout(() => setUploadStatus('', ''), 4000);
+        } else {
+          setUploadStatus(`Error: ${data.error || 'Failed to index'}`, 'error');
+        }
       } catch (err) {
-        alert('Ingestion error: ' + err);
+        setUploadStatus(`Ingestion error: ${err}`, 'error');
       }
     }
 
