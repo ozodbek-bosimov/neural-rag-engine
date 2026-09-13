@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PyTorch RAG Engine: Web Dashboard & REST API.
+Neural RAG Engine: Web Dashboard & REST API.
 """
 
 import os
@@ -24,7 +24,7 @@ HTML_PAGE = """<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PyTorch RAG Engine — Neural Retrieval & LLM Grounding</title>
+  <title>Neural RAG Engine — High-Performance Retrieval & LLM Grounding</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -451,14 +451,14 @@ HTML_PAGE = """<!DOCTYPE html>
   <header>
     <a href="/" class="brand">
       <div class="brand-logo">⚡</div>
-      <div class="brand-title">PyTorch RAG Engine</div>
+      <div class="brand-title">Neural RAG Engine</div>
       <span class="badge">Dual-Engine</span>
     </a>
     <div class="nav-actions">
       <button class="btn-secondary" onclick="openSettings()">
         ⚙️ Settings
       </button>
-      <a href="https://github.com/ozodbek-bosimov/pytorch-rag-engine" target="_blank" class="btn-secondary">
+      <a href="https://github.com/ozodbek-bosimov/neural-rag-engine" target="_blank" class="btn-secondary">
         ⭐ GitHub
       </a>
     </div>
@@ -816,7 +816,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
 def run_server(port: int = 8085):
     server_address = ("0.0.0.0", port)
     httpd = HTTPServer(server_address, RAGRequestHandler)
-    print(f"[*] PyTorch RAG Engine Server running on http://localhost:{port}")
+    print(f"[*] Neural RAG Engine Server running on http://localhost:{port}")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

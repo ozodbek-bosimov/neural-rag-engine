@@ -1,3 +1,3 @@
 """
-PyTorch RAG Engine Source Package.
+Neural RAG Engine Source Package.
 """

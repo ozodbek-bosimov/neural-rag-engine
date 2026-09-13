@@ -1,3 +1,3 @@
 """
-PyTorch RAG Engine Test Suite.
+Neural RAG Engine Test Suite.
 """

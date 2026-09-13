@@ -45,8 +45,8 @@ class LLMClient:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://github.com/ozodbek-bosimov/pytorch-rag-engine",
-            "X-Title": "PyTorch RAG Engine"
+            "HTTP-Referer": "https://github.com/ozodbek-bosimov/neural-rag-engine",
+            "X-Title": "Neural RAG Engine"
         }
 
         messages = []

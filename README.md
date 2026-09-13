@@ -1,12 +1,12 @@
-# PyTorch RAG Engine
+# Neural RAG Engine
 
-A lightweight, production-ready Retrieval-Augmented Generation (RAG) system with a custom PyTorch embedding projection head, dense cosine retrieval, and OpenRouter LLM integration.
+A lightweight, production-ready Retrieval-Augmented Generation (RAG) system with a custom neural embedding projection head, dense cosine retrieval, and OpenRouter LLM integration.
 
 ---
 
 ## Features
 
-- **PyTorch Projection Head (`nn.Module`)**: Custom 2-layer projection head (`Linear -> GELU -> Dropout -> Linear -> LayerNorm -> L2 Normalize`) trained via `CosineEmbeddingLoss` and `AdamW`.
+- **Neural Projection Head (`nn.Module`)**: Custom 2-layer projection head (`Linear -> GELU -> Dropout -> Linear -> LayerNorm -> L2 Normalize`) trained via `CosineEmbeddingLoss` and `AdamW`.
 - **Sentence-Aware Chunker**: Sliding window chunker with configurable token overlap preserving sentence and paragraph boundaries.
 - **In-Memory Dense Vector Store**: Sub-millisecond cosine similarity ranking over normalized document vectors.
 - **Dual Synthesis Engine**: Online generative synthesis via OpenRouter (DeepSeek-R1, Meta Llama 3.3, Google Gemini) with deterministic offline semantic extraction fallback.
@@ -24,7 +24,7 @@ A lightweight, production-ready Retrieval-Augmented Generation (RAG) system with
 [DocumentChunker] (Sentence-aware sliding window + overlap)
        │
        ▼
-[Dense Embedding & PyTorch Projection Head] (L2 normalized ℝ^256)
+[Dense Embedding & Neural Projection Head] (L2 normalized ℝ^256)
        │
        ▼
 [VectorStore Index] (In-memory cosine similarity search)
@@ -49,8 +49,8 @@ A lightweight, production-ready Retrieval-Augmented Generation (RAG) system with
 ### 1. Installation
 
 ```bash
-git clone https://github.com/ozodbek-bosimov/pytorch-rag-engine.git
-cd pytorch-rag-engine
+git clone https://github.com/ozodbek-bosimov/neural-rag-engine.git
+cd neural-rag-engine
 pip install -r requirements.txt
 ```
 
@@ -152,7 +152,7 @@ python3 -m unittest tests/test_pipeline.py
 ## Project Structure
 
 ```
-pytorch-rag-engine/
+neural-rag-engine/
 ├── app.py                      # HTTP server, REST API, and dashboard
 ├── evaluate.py                 # Hit Rate@K and MRR evaluation suite
 ├── requirements.txt            # Dependency list
@@ -168,9 +168,9 @@ pytorch-rag-engine/
 │   ├── chunker.py              # Sentence-preserving sliding window chunker
 │   ├── dataset.py              # PyTorch Dataset for paired contrastive data
 │   ├── llm_client.py           # OpenRouter client & offline fallback
-│   ├── model.py                # PyTorch EmbeddingProjectionHead (nn.Module)
+│   ├── model.py                # Neural EmbeddingProjectionHead (nn.Module)
 │   ├── rag_engine.py           # RAG orchestrator & vector index
-│   ├── train.py                # PyTorch training loop (AdamW + CosineLoss)
+│   ├── train.py                # Neural training loop (AdamW + CosineLoss)
 │   └── vector_store.py         # Dense vector store with cosine ranking
 └── tests/
     ├── __init__.py
