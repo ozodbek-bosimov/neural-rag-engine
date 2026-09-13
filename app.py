@@ -338,25 +338,35 @@ HTML_PAGE = """<!DOCTYPE html>
       border-radius: 8px;
       padding: 1.25rem;
     }
-    .presets {
+    .demo-queries {
       display: flex;
+      align-items: center;
       flex-wrap: wrap;
       gap: 0.45rem;
-      margin-bottom: 1rem;
+      margin-top: 0.85rem;
     }
-    .preset-pill {
+    .demo-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-right: 0.15rem;
+    }
+    .demo-btn {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
       border-radius: 4px;
-      padding: 0.3rem 0.65rem;
+      padding: 0.25rem 0.55rem;
       font-size: 0.75rem;
       color: var(--text-secondary);
       cursor: pointer;
-      transition: all 0.15s;
+      font-family: inherit;
+      transition: all 0.15s ease;
     }
-    .preset-pill:hover {
-      border-color: #8b949e;
+    .demo-btn:hover {
       color: var(--text-primary);
+      border-color: #8b949e;
       background: #30363d;
     }
 
@@ -640,6 +650,12 @@ HTML_PAGE = """<!DOCTYPE html>
           <button id="search-btn" class="submit-btn" onclick="submitQuery()">
             Search
           </button>
+        </div>
+        <div class="demo-queries">
+          <span class="demo-label">Demo:</span>
+          <button class="demo-btn" onclick="applyQuery('What are the five essential steps of a standard PyTorch training loop?')">PyTorch Training Loop</button>
+          <button class="demo-btn" onclick="applyQuery('What is RAG and how does it prevent LLM hallucination?')">RAG & Hallucination Grounding</button>
+          <button class="demo-btn" onclick="applyQuery('What are the benefits of weight quantization and SIMD inference for deployment?')">SIMD & Quantization</button>
         </div>
       </div>
 
