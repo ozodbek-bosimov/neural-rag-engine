@@ -173,7 +173,8 @@ class RAGEngine:
         user_query: str,
         top_k: int = 3,
         min_similarity: float = 0.05,
-        custom_model: Optional[str] = None
+        custom_model: Optional[str] = None,
+        custom_api_key: Optional[str] = None
     ) -> Dict[str, Any]:
         t0 = time.perf_counter()
 
@@ -208,13 +209,29 @@ class RAGEngine:
         )
 
         t_gen_start = time.perf_counter()
+        prev_model = self.llm_client.model
+        prev_key = self.llm_client.api_key
+        prev_gemini = self.llm_client.gemini_key
+        prev_openrouter = self.llm_client.openrouter_key
+
         if custom_model:
-            prev_model = self.llm_client.model
             self.llm_client.model = custom_model
+        if custom_api_key:
+            self.llm_client.api_key = custom_api_key
+            if custom_api_key.startswith("AQ.") or "AIza" in custom_api_key:
+                self.llm_client.gemini_key = custom_api_key
+                self.llm_client.provider = "Google Gemini"
+            elif custom_api_key.startswith("sk-"):
+                self.llm_client.openrouter_key = custom_api_key
+                self.llm_client.provider = "OpenRouter"
+
+        try:
             llm_response = self.llm_client.generate(prompt=grounded_prompt, system_prompt="You are a professional AI engineer.")
+        finally:
             self.llm_client.model = prev_model
-        else:
-            llm_response = self.llm_client.generate(prompt=grounded_prompt, system_prompt="You are a professional AI engineer.")
+            self.llm_client.api_key = prev_key
+            self.llm_client.gemini_key = prev_gemini
+            self.llm_client.openrouter_key = prev_openrouter
 
         generation_ms = (time.perf_counter() - t_gen_start) * 1000
         total_latency_ms = (time.perf_counter() - t0) * 1000

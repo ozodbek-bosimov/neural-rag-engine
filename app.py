@@ -909,11 +909,15 @@ HTML_PAGE = r"""<!DOCTYPE html>
         <button class="modal-close-btn" onclick="closeSettings()">&times;</button>
       </div>
       <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.45;">
-        Configure Google Gemini or OpenRouter API credentials to enable online LLM generation with citation grounding.
+        Configure Google Gemini or OpenRouter API credentials to enable online LLM generation with citation grounding. A default Gemini API key is pre-configured and active for all visitors.
       </p>
       <div>
-        <label style="display:block; font-size:0.75rem; font-weight:600; margin-bottom:0.35rem; color:var(--text-secondary);">API Key (Google Gemini or OpenRouter):</label>
-        <input type="password" id="api-key-input" class="input-box" placeholder="AQ... or AIza... or sk-...">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+          <label style="font-size:0.75rem; font-weight:600; color:var(--text-secondary);">API Key (Google Gemini or OpenRouter):</label>
+          <span style="font-size:0.7rem; color:var(--accent-primary); font-weight:500;">✓ Pre-configured default key</span>
+        </div>
+        <input type="text" id="api-key-input" class="input-box" style="font-family:'JetBrains Mono',monospace; font-size:0.8rem;" placeholder="AQ... or AIza... or sk-...">
+        <div style="font-size:0.72rem; color:var(--text-muted); margin-top:0.3rem;">Default Gemini key is globally active. You can also paste your own key.</div>
       </div>
       <div>
         <label style="display:block; font-size:0.75rem; font-weight:600; margin-bottom:0.35rem; color:var(--text-secondary);">Target Model:</label>
@@ -933,6 +937,50 @@ HTML_PAGE = r"""<!DOCTYPE html>
   <script>
     // Isolated in-memory session per page load or browser refresh
     const SESSION_ID = 'sess_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+    let DEFAULT_GEMINI_KEY = "";
+    let DEFAULT_MODEL = "gemini-flash-lite-latest";
+
+    async function initAppConfig() {
+      try {
+        const res = await apiFetch('/api/config');
+        if (res.ok) {
+          const cfg = await res.json();
+          if (cfg.default_gemini_key) DEFAULT_GEMINI_KEY = cfg.default_gemini_key;
+          if (cfg.default_model) DEFAULT_MODEL = cfg.default_model;
+        }
+      } catch (e) {
+        console.warn('Config load notice:', e);
+      }
+    }
+
+    async function callGeminiDirect(query, sources, apiKey, model) {
+      let targetModel = model || DEFAULT_MODEL;
+      if (!targetModel.startsWith('gemini')) {
+        targetModel = DEFAULT_MODEL;
+      }
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const contextText = sources.map((s, idx) => `[Source ${idx+1}: ${s.document_title}]\n${s.text}`).join('\n\n');
+      const systemInstruction = "You are an expert AI Engineer. Answer the user query strictly using the verified context sources provided below. Cite relevant source numbers where applicable. Use clean, well-formatted markdown without giant titles.";
+      const prompt = `Context Sources:\n${contextText}\n\nUser Question:\n${query}\n\nProvide a concise, technically rigorous answer:`;
+
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `${systemInstruction}\n\n${prompt}` }] }],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 1024
+          }
+        })
+      });
+
+      if (!resp.ok) {
+        throw new Error(`Gemini HTTP error ${resp.status}`);
+      }
+      const resJson = await resp.json();
+      return resJson.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    }
 
     function apiFetch(url, options = {}) {
       options.headers = options.headers || {};
@@ -1135,16 +1183,37 @@ HTML_PAGE = r"""<!DOCTYPE html>
       btn.disabled = true;
 
       try {
-        const savedModel = localStorage.getItem('rag_model') || 'deepseek/deepseek-r1:free';
+        const apiKey = localStorage.getItem('api_key') || DEFAULT_GEMINI_KEY;
+        const savedModel = localStorage.getItem('rag_model') || DEFAULT_MODEL;
+
         const res = await apiFetch('/api/query', {
           method: 'POST',
-          body: JSON.stringify({ query: query, model: savedModel })
+          body: JSON.stringify({ query: query, model: savedModel, api_key: apiKey })
         });
         const data = await res.json();
 
+        let finalAnswer = data.answer;
+        let finalModel = data.model_used;
+        let finalFallback = data.fallback_used;
+
+        // If server had to use offline fallback (e.g. Alwaysdata server IP blocked by Google GFE),
+        // invoke Google Gemini directly from the visitor browser using the active Gemini key!
+        if (data.fallback_used && apiKey && (apiKey.startsWith('AQ.') || apiKey.startsWith('AIza')) && data.sources && data.sources.length > 0) {
+          try {
+            const directAnswer = await callGeminiDirect(query, data.sources, apiKey, savedModel);
+            if (directAnswer && directAnswer.trim()) {
+              finalAnswer = directAnswer;
+              finalModel = `Google Gemini (${savedModel.replace('models/', '')})`;
+              finalFallback = false;
+            }
+          } catch (geminiErr) {
+            console.warn('Direct Gemini call fallback notice:', geminiErr);
+          }
+        }
+
         card.style.display = 'flex';
-        answerEl.innerHTML = renderMarkdown(data.answer);
-        modelEl.textContent = data.model_used + (data.fallback_used ? ' (Offline Mode)' : '');
+        answerEl.innerHTML = renderMarkdown(finalAnswer);
+        modelEl.textContent = finalModel + (finalFallback ? ' (Offline Mode)' : '');
         latencyEl.textContent = `⚡ Retrieval: ${data.retrieval_time_ms}ms | Total: ${data.total_latency_ms}ms`;
 
         grid.innerHTML = '';
@@ -1222,8 +1291,8 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
     function openSettings() {
       document.getElementById('settings-modal').style.display = 'flex';
-      document.getElementById('api-key-input').value = localStorage.getItem('api_key') || '';
-      document.getElementById('model-select').value = localStorage.getItem('rag_model') || 'gemini-flash-lite-latest';
+      document.getElementById('api-key-input').value = localStorage.getItem('api_key') || DEFAULT_GEMINI_KEY;
+      document.getElementById('model-select').value = localStorage.getItem('rag_model') || DEFAULT_MODEL;
     }
 
     function closeSettings() {
@@ -1354,6 +1423,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     }
 
     window.addEventListener('DOMContentLoaded', () => {
+      initAppConfig();
       refreshStats();
       setupDragAndDrop();
     });
@@ -1403,6 +1473,15 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(HTML_PAGE.encode("utf-8"))
             return
 
+        if path == "/api/config":
+            cfg = {
+                "default_gemini_key": GLOBAL_API_KEY or os.getenv("GEMINI_API_KEY", ""),
+                "default_model": GLOBAL_MODEL or os.getenv("DEFAULT_MODEL", "gemini-flash-lite-latest")
+            }
+            self._set_headers(200)
+            self.wfile.write(json.dumps(cfg).encode("utf-8"))
+            return
+
         if path == "/api/stats":
             engine = self._get_engine()
             stats = engine.get_system_stats()
@@ -1441,6 +1520,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
         if path == "/api/query":
             query_text = body.get("query", "").strip()
             custom_model = body.get("model", None)
+            custom_api_key = body.get("api_key", None)
             top_k = int(body.get("top_k", 3))
 
             if not query_text:
@@ -1448,7 +1528,7 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({"error": "Empty query"}).encode("utf-8"))
                 return
 
-            res = engine.query(query_text, top_k=top_k, custom_model=custom_model)
+            res = engine.query(query_text, top_k=top_k, custom_model=custom_model, custom_api_key=custom_api_key)
             self._set_headers(200)
             self.wfile.write(json.dumps(res).encode("utf-8"))
             return

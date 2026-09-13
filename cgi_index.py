@@ -130,6 +130,14 @@ def main():
             respond(200, "text/html; charset=utf-8", app.HTML_PAGE.encode("utf-8"), is_head=is_head)
             return
 
+        if path == "/api/config":
+            cfg = {
+                "default_gemini_key": GLOBAL_API_KEY or os.getenv("GEMINI_API_KEY", ""),
+                "default_model": GLOBAL_MODEL or os.getenv("DEFAULT_MODEL", "gemini-flash-lite-latest")
+            }
+            respond(200, "application/json", json.dumps(cfg).encode("utf-8"), is_head=is_head)
+            return
+
         if path == "/api/stats":
             engine = load_or_create_engine(session_id)
             stats = engine.get_system_stats()
@@ -167,13 +175,14 @@ def main():
         if path == "/api/query":
             query_text = body.get("query", "").strip()
             custom_model = body.get("model", None)
+            custom_api_key = body.get("api_key", None)
             top_k = int(body.get("top_k", 3))
 
             if not query_text:
                 respond(400, "application/json", json.dumps({"error": "Empty query"}).encode("utf-8"))
                 return
 
-            res = engine.query(query_text, top_k=top_k, custom_model=custom_model)
+            res = engine.query(query_text, top_k=top_k, custom_model=custom_model, custom_api_key=custom_api_key)
             respond(200, "application/json", json.dumps(res).encode("utf-8"))
             return
 
