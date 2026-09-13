@@ -629,18 +629,6 @@ HTML_PAGE = """<!DOCTYPE html>
 
     <section class="main-view">
       <div class="search-panel">
-        <div class="presets">
-          <div class="preset-pill" onclick="applyQuery('What are the five essential steps of a standard PyTorch training loop?')">
-            PyTorch Training Loop (5 Steps)
-          </div>
-          <div class="preset-pill" onclick="applyQuery('What is RAG and how does it prevent LLM hallucination?')">
-            RAG Architecture & Hallucination Grounding
-          </div>
-          <div class="preset-pill" onclick="applyQuery('What are the benefits of weight quantization and SIMD inference for deployment?')">
-            Quantization & CPU Inference
-          </div>
-        </div>
-
         <div class="search-row">
           <input 
             type="text" 
@@ -675,19 +663,8 @@ HTML_PAGE = """<!DOCTYPE html>
   </main>
 
   <footer>
-    <div class="footer-inner">
-      <div class="footer-left">
-        <span class="footer-brand">Neural RAG Engine</span>
-        <span class="footer-sep">&bull;</span>
-        <span>Dense Vector Retrieval & LLM Context Grounding</span>
-      </div>
-      <div class="footer-right">
-        <a href="https://github.com/ozodbek-bosimov/neural-rag-engine" target="_blank" class="footer-link">GitHub</a>
-        <span class="footer-sep">&bull;</span>
-        <span>MIT License</span>
-        <span class="footer-sep">&bull;</span>
-        <span>Ozodbek Bosimov</span>
-      </div>
+    <div class="footer-inner" style="justify-content:center;">
+      <a href="https://github.com/ozodbek-bosimov/neural-rag-engine" target="_blank" class="footer-link" style="font-family:'JetBrains Mono', monospace; font-size:0.8rem;">https://github.com/ozodbek-bosimov/neural-rag-engine</a>
     </div>
   </footer>
 
