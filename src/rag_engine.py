@@ -29,7 +29,7 @@ class RAGEngine:
         chunk_size: int = 120,
         chunk_overlap: int = 30,
         api_key: Optional[str] = None,
-        model_name: str = "deepseek/deepseek-r1:free"
+        model_name: Optional[str] = None
     ):
         self.embedding_dim = embedding_dim
         self.chunker = DocumentChunker(chunk_size=chunk_size, chunk_overlap=chunk_overlap)

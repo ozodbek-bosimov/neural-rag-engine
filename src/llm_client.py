@@ -5,18 +5,72 @@ import urllib.request
 import urllib.error
 from typing import Dict, Any, Optional
 
+# Automatically load .env if present
+env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+if os.path.exists(env_path):
+    with open(env_path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip())
+
 
 class LLMClient:
-    """OpenRouter API client with automatic offline extractive synthesis fallback."""
+    """Multi-provider LLM client supporting Google Gemini and OpenRouter."""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "deepseek/deepseek-r1:free"):
-        self.api_key = api_key or os.getenv("OPENROUTER_API_KEY")
-        self.model = model
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None
+    ):
+        self.gemini_key = os.getenv("GEMINI_API_KEY") or (api_key if api_key and api_key.startswith("AQ.") else None)
+        self.openrouter_key = os.getenv("OPENROUTER_API_KEY") or (api_key if api_key and api_key.startswith("sk-") else None)
+        self.api_key = self.gemini_key or self.openrouter_key or api_key
+
+        if self.gemini_key:
+            self.provider = "Google Gemini"
+            self.model = model or os.getenv("DEFAULT_MODEL") or "gemini-flash-lite-latest"
+        elif self.openrouter_key:
+            self.provider = "OpenRouter"
+            self.model = model or "deepseek/deepseek-r1:free"
+        else:
+            self.provider = "Offline"
+            self.model = "Offline Extractive Synthesizer"
 
     def generate(self, prompt: str, system_prompt: str = "") -> Dict[str, Any]:
         start = time.perf_counter()
 
-        if self.api_key and ("sk-" in self.api_key):
+        # 1. Google Gemini
+        if self.gemini_key:
+            try:
+                answer = self._call_gemini(prompt, system_prompt)
+                latency = round((time.perf_counter() - start) * 1000, 1)
+                return {
+                    "text": answer,
+                    "model": self.model,
+                    "provider": "Google Gemini",
+                    "latency_ms": latency,
+                    "is_fallback": False
+                }
+            except Exception as err:
+                print(f"[!] Gemini primary call failed ({err}). Trying fallback model...")
+                try:
+                    alt_model = "gemini-flash-latest" if "lite" in self.model else "gemini-flash-lite-latest"
+                    answer = self._call_gemini(prompt, system_prompt, model_override=alt_model)
+                    latency = round((time.perf_counter() - start) * 1000, 1)
+                    return {
+                        "text": answer,
+                        "model": alt_model,
+                        "provider": "Google Gemini",
+                        "latency_ms": latency,
+                        "is_fallback": False
+                    }
+                except Exception as err2:
+                    print(f"[!] Gemini fallback failed ({err2}). Switching to local extractor.")
+
+        # 2. OpenRouter
+        if self.openrouter_key:
             try:
                 answer = self._call_openrouter(prompt, system_prompt)
                 latency = round((time.perf_counter() - start) * 1000, 1)
@@ -28,8 +82,9 @@ class LLMClient:
                     "is_fallback": False
                 }
             except Exception as err:
-                print(f"[!] OpenRouter error: {err}. Switching to offline extractor.")
+                print(f"[!] OpenRouter call failed: {err}")
 
+        # 3. Offline Extractive Fallback
         fallback_text = self._extractive_fallback(prompt)
         latency = round((time.perf_counter() - start) * 1000, 1)
         return {
@@ -40,10 +95,37 @@ class LLMClient:
             "is_fallback": True
         }
 
-    def _call_openrouter(self, prompt: str, system_prompt: str) -> str:
+    def _call_gemini(self, prompt: str, system_prompt: str = "", model_override: Optional[str] = None) -> str:
+        target_model = model_override or self.model
+        if not target_model.startswith("models/"):
+            target_model = f"models/{target_model}"
+
+        url = f"https://generativelanguage.googleapis.com/v1beta/{target_model}:generateContent?key={self.gemini_key}"
+        full_content = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
+
+        payload = {
+            "contents": [{"parts": [{"text": full_content}]}],
+            "generationConfig": {
+                "temperature": 0.2,
+                "maxOutputTokens": 1024
+            }
+        }
+
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST"
+        )
+
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+
+    def _call_openrouter(self, prompt: str, system_prompt: str = "") -> str:
         url = "https://openrouter.ai/api/v1/chat/completions"
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {self.openrouter_key}",
             "Content-Type": "application/json",
             "HTTP-Referer": "https://github.com/ozodbek-bosimov/neural-rag-engine",
             "X-Title": "Neural RAG Engine"
@@ -62,7 +144,7 @@ class LLMClient:
         }
 
         req = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=25) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             return data["choices"][0]["message"]["content"]
 
@@ -101,5 +183,5 @@ class LLMClient:
             f"**Grounded Extraction:**\n\n"
             f"{extracted}\n\n"
             f"---\n"
-            f"*Note: Running in offline grounded mode. Configure an OpenRouter API key in Settings for generative synthesis.*"
+            f"*Note: Running in offline mode. Configure an API key in Settings for generative synthesis.*"
         )

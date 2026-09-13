@@ -546,22 +546,23 @@ HTML_PAGE = """<!DOCTYPE html>
   <div id="settings-modal" class="modal-backdrop">
     <div class="modal-card">
       <div class="modal-head">
-        <h3 style="font-size:1.1rem; font-weight:700;">API & Model Settings</h3>
+        <h3 style="font-size:1.1rem; font-weight:700;">AI Engine & Model Settings</h3>
         <button class="modal-close-btn" onclick="closeSettings()">&times;</button>
       </div>
       <p style="font-size:0.85rem; color:var(--text-secondary); line-height:1.5;">
-        Configure OpenRouter API credentials to enable online LLM generation with models like DeepSeek-R1 and Llama 3.3.
+        Configure Google Gemini or OpenRouter API credentials to enable online LLM generation with citation grounding.
       </p>
       <div>
-        <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:0.4rem;">OpenRouter API Key:</label>
-        <input type="password" id="api-key-input" class="input-box" placeholder="sk-or-v1-...">
+        <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:0.4rem;">API Key (Google Gemini or OpenRouter):</label>
+        <input type="password" id="api-key-input" class="input-box" placeholder="AQ... or AIza... or sk-...">
       </div>
       <div>
         <label style="display:block; font-size:0.8rem; font-weight:600; margin-bottom:0.4rem;">Target Model:</label>
         <select id="model-select" class="input-box">
-          <option value="deepseek/deepseek-r1:free">DeepSeek-R1 (Free Reasoning Model)</option>
-          <option value="meta-llama/llama-3.3-70b-instruct:free">Meta Llama 3.3 70B Instruct (Free)</option>
-          <option value="google/gemini-2.0-flash-exp:free">Google Gemini 2.0 Flash (Free)</option>
+          <option value="gemini-flash-lite-latest">Google Gemini Flash-Lite (Fastest, Recommended)</option>
+          <option value="gemini-flash-latest">Google Gemini Flash (Flagship)</option>
+          <option value="deepseek/deepseek-r1:free">DeepSeek-R1 via OpenRouter (Reasoning)</option>
+          <option value="meta-llama/llama-3.3-70b-instruct:free">Meta Llama 3.3 70B via OpenRouter</option>
         </select>
       </div>
       <button class="btn-primary" onclick="saveSettings()">
@@ -680,8 +681,8 @@ HTML_PAGE = """<!DOCTYPE html>
 
     function openSettings() {
       document.getElementById('settings-modal').style.display = 'flex';
-      document.getElementById('api-key-input').value = localStorage.getItem('openrouter_key') || '';
-      document.getElementById('model-select').value = localStorage.getItem('rag_model') || 'deepseek/deepseek-r1:free';
+      document.getElementById('api-key-input').value = localStorage.getItem('api_key') || '';
+      document.getElementById('model-select').value = localStorage.getItem('rag_model') || 'gemini-flash-lite-latest';
     }
 
     function closeSettings() {
@@ -691,16 +692,14 @@ HTML_PAGE = """<!DOCTYPE html>
     async function saveSettings() {
       const key = document.getElementById('api-key-input').value.trim();
       const model = document.getElementById('model-select').value;
-      localStorage.setItem('openrouter_key', key);
+      if (key) localStorage.setItem('api_key', key);
       localStorage.setItem('rag_model', model);
 
-      if (key) {
-        await fetch('/api/settings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ api_key: key, model: model })
-        });
-      }
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: key, model: model })
+      });
       closeSettings();
       alert('Settings saved successfully.');
     }
@@ -799,14 +798,24 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/settings":
-            api_key = body.get("api_key")
-            model = body.get("model")
+            api_key = body.get("api_key", "").strip()
+            model = body.get("model", "").strip()
             if api_key:
+                if api_key.startswith("AQ.") or "AIza" in api_key:
+                    engine.llm_client.gemini_key = api_key
+                    engine.llm_client.provider = "Google Gemini"
+                elif api_key.startswith("sk-"):
+                    engine.llm_client.openrouter_key = api_key
+                    engine.llm_client.provider = "OpenRouter"
                 engine.llm_client.api_key = api_key
             if model:
                 engine.llm_client.model = model
             self._set_headers(200)
-            self.wfile.write(json.dumps({"status": "settings_updated"}).encode("utf-8"))
+            self.wfile.write(json.dumps({
+                "status": "settings_updated",
+                "provider": engine.llm_client.provider,
+                "model": engine.llm_client.model
+            }).encode("utf-8"))
             return
 
         self._set_headers(404)
